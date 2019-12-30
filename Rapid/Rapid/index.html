@@ -1,0 +1,2699 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+
+    <title>Globalfora Research Group Ltd</title>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport">
+    <meta content="" name="keywords">
+    <meta content="" name="description">
+
+    <!-- Favicons -->
+    <link href="img/logo.JPG" rel="icon">
+    <link href="img/apple-touch-icon.png" rel="apple-touch-icon">
+
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css?family=Open+Sans:300,300i,400,400i,500,600,700,700i|Montserrat:300,400,500,600,700"
+          rel="stylesheet">
+
+    <!-- Bootstrap CSS File -->
+    <link href="lib/bootstrap/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Libraries CSS Files -->
+    <link href="lib/font-awesome/css/font-awesome.min.css" rel="stylesheet">
+    <link href="lib/animate/animate.min.css" rel="stylesheet">
+    <link href="lib/ionicons/css/ionicons.min.css" rel="stylesheet">
+    <link href="lib/owlcarousel/assets/owl.carousel.min.css" rel="stylesheet">
+    <link href="lib/lightbox/css/lightbox.min.css" rel="stylesheet">
+
+    <!-- Main Stylesheet File -->
+    <link href="css/style.css" rel="stylesheet">
+
+</head>
+<!--Start of Tawk.to Script-->
+<script type="text/javascript">
+var Tawk_API=Tawk_API||{}, Tawk_LoadStart=new Date();
+(function(){
+var s1=document.createElement("script"),s0=document.getElementsByTagName("script")[0];
+s1.async=true;
+s1.src='https://embed.tawk.to/5e037ca127773e0d832aa635/default';
+s1.charset='UTF-8';
+s1.setAttribute('crossorigin','*');
+s0.parentNode.insertBefore(s1,s0);
+})();
+</script>
+<!--End of Tawk.to Script-->
+<body>
+
+    <script>
+/** Vin don't forget to remove line 34-611 after these holidays!!!
+
+ */
+/*jslint nomen: true, plusplus: true, sloppy: true, vars: true, white: true */
+/*global window, document, navigator, clearInterval, setInterval */
+var snowStorm = (function(window, document) {
+  // --- common properties ---
+  this.autoStart = true;          // Whether the snow should start automatically or not.
+  this.excludeMobile = true;      // Snow is likely to be bad news for mobile phones' CPUs (and batteries.) Enable at your own risk.
+  this.flakesMax = 128;           // Limit total amount of snow made (falling + sticking)
+  this.flakesMaxActive = 64;      // Limit amount of snow falling at once (less = lower CPU use)
+  this.animationInterval = 60;    // Theoretical "miliseconds per frame" measurement. 20 = fast + smooth, but high CPU use. 50 = more conservative, but slower
+  this.useGPU = true;             // Enable transform-based hardware acceleration, reduce CPU load.
+  this.className = null;          // CSS class name for further customization on snow elements
+  this.excludeMobile = true;      // Snow is likely to be bad news for mobile phones' CPUs (and batteries.) By default, be nice.
+  this.flakeBottom = null;        // Integer for Y axis snow limit, 0 or null for "full-screen" snow effect
+  this.followMouse = true;        // Snow movement can respond to the user's mouse
+  this.snowColor = '#fd070a';        // Don't eat (or use?) yellow snow.
+  this.snowCharacter = '&bull;';  // &bull; = bullet, &middot; is square on some systems etc.
+  this.snowStick = true;          // Whether or not snow should "stick" at the bottom. When off, will never collect.
+  this.targetElement = null;      // element which snow will be appended to (null = document.body) - can be an element ID eg. 'myDiv', or a DOM node reference
+  this.useMeltEffect = true;      // When recycling fallen snow (or rarely, when falling), have it "melt" and fade out if browser supports it
+  this.useTwinkleEffect = true;  // Allow snow to randomly "flicker" in and out of view while falling
+  this.usePositionFixed = false;  // true = snow does not shift vertically when scrolling. May increase CPU load, disabled by default - if enabled, used only where supported
+  this.usePixelPosition = false;  // Whether to use pixel values for snow top/left vs. percentages. Auto-enabled if body is position:relative or targetElement is specified.
+  // --- less-used bits ---
+  this.freezeOnBlur = true;       // Only snow when the window is in focus (foreground.) Saves CPU.
+  this.flakeLeftOffset = 0;       // Left margin/gutter space on edge of container (eg. browser window.) Bump up these values if seeing horizontal scrollbars.
+  this.flakeRightOffset = 0;      // Right margin/gutter space on edge of container
+  this.flakeWidth = 8;            // Max pixel width reserved for snow element
+  this.flakeHeight = 8;           // Max pixel height reserved for snow element
+  this.vMaxX = 0;                 // Maximum X velocity range for snow
+  this.vMaxY = 2;                 // Maximum Y velocity range for snow
+  this.zIndex = 0;                // CSS stacking order applied to each snowflake
+  // --- "No user-serviceable parts inside" past this point, yadda yadda ---
+  var storm = this,
+  features,
+  // UA sniffing and backCompat rendering mode checks for fixed position, etc.
+  isIE = navigator.userAgent.match(/msie/i),
+  isIE6 = navigator.userAgent.match(/msie 6/i),
+  isMobile = navigator.userAgent.match(/mobile|opera m(ob|in)/i),
+  isBackCompatIE = (isIE && document.compatMode === 'BackCompat'),
+  noFixed = (isBackCompatIE || isIE6),
+  screenX = null, screenX2 = null, screenY = null, scrollY = null, docHeight = null, vRndX = null, vRndY = null,
+  windOffset = 1,
+  windMultiplier = 2,
+  flakeTypes = 6,
+  fixedForEverything = false,
+  targetElementIsRelative = false,
+  opacitySupported = (function(){
+    try {
+      document.createElement('div').style.opacity = '0.5';
+    } catch(e) {
+      return false;
+    }
+    return true;
+  }()),
+  didInit = false,
+  docFrag = document.createDocumentFragment();
+  features = (function() {
+    var getAnimationFrame;
+    /**
+     * hat tip: paul irish
+     * http://paulirish.com/2011/requestanimationframe-for-smart-animating/
+     * https://gist.github.com/838785
+     */
+    function timeoutShim(callback) {
+      window.setTimeout(callback, 1000/(storm.animationInterval || 20));
+    }
+    var _animationFrame = (window.requestAnimationFrame ||
+        window.webkitRequestAnimationFrame ||
+        window.mozRequestAnimationFrame ||
+        window.oRequestAnimationFrame ||
+        window.msRequestAnimationFrame ||
+        timeoutShim);
+    // apply to window, avoid "illegal invocation" errors in Chrome
+    getAnimationFrame = _animationFrame ? function() {
+      return _animationFrame.apply(window, arguments);
+    } : null;
+    var testDiv;
+    testDiv = document.createElement('div');
+    function has(prop) {
+      // test for feature support
+      var result = testDiv.style[prop];
+      return (result !== undefined ? prop : null);
+    }
+    // note local scope.
+    var localFeatures = {
+      transform: {
+        ie:  has('-ms-transform'),
+        moz: has('MozTransform'),
+        opera: has('OTransform'),
+        webkit: has('webkitTransform'),
+        w3: has('transform'),
+        prop: null // the normalized property value
+      },
+      getAnimationFrame: getAnimationFrame
+    };
+    localFeatures.transform.prop = (
+      localFeatures.transform.w3 ||
+      localFeatures.transform.moz ||
+      localFeatures.transform.webkit ||
+      localFeatures.transform.ie ||
+      localFeatures.transform.opera
+    );
+    testDiv = null;
+    return localFeatures;
+  }());
+  this.timer = null;
+  this.flakes = [];
+  this.disabled = false;
+  this.active = false;
+  this.meltFrameCount = 20;
+  this.meltFrames = [];
+  this.setXY = function(o, x, y) {
+    if (!o) {
+      return false;
+    }
+    if (storm.usePixelPosition || targetElementIsRelative) {
+      o.style.left = (x - storm.flakeWidth) + 'px';
+      o.style.top = (y - storm.flakeHeight) + 'px';
+    } else if (noFixed) {
+      o.style.right = (100-(x/screenX*100)) + '%';
+      // avoid creating vertical scrollbars
+      o.style.top = (Math.min(y, docHeight-storm.flakeHeight)) + 'px';
+    } else {
+      if (!storm.flakeBottom) {
+        // if not using a fixed bottom coordinate...
+        o.style.right = (100-(x/screenX*100)) + '%';
+        o.style.bottom = (100-(y/screenY*100)) + '%';
+      } else {
+        // absolute top.
+        o.style.right = (100-(x/screenX*100)) + '%';
+        o.style.top = (Math.min(y, docHeight-storm.flakeHeight)) + 'px';
+      }
+    }
+  };
+  this.events = (function() {
+    var old = (!window.addEventListener && window.attachEvent), slice = Array.prototype.slice,
+    evt = {
+      add: (old?'attachEvent':'addEventListener'),
+      remove: (old?'detachEvent':'removeEventListener')
+    };
+    function getArgs(oArgs) {
+      var args = slice.call(oArgs), len = args.length;
+      if (old) {
+        args[1] = 'on' + args[1]; // prefix
+        if (len > 3) {
+          args.pop(); // no capture
+        }
+      } else if (len === 3) {
+        args.push(false);
+      }
+      return args;
+    }
+    function apply(args, sType) {
+      var element = args.shift(),
+          method = [evt[sType]];
+      if (old) {
+        element[method](args[0], args[1]);
+      } else {
+        element[method].apply(element, args);
+      }
+    }
+    function addEvent() {
+      apply(getArgs(arguments), 'add');
+    }
+    function removeEvent() {
+      apply(getArgs(arguments), 'remove');
+    }
+    return {
+      add: addEvent,
+      remove: removeEvent
+    };
+  }());
+  function rnd(n,min) {
+    if (isNaN(min)) {
+      min = 0;
+    }
+    return (Math.random()*n)+min;
+  }
+  function plusMinus(n) {
+    return (parseInt(rnd(2),10)===1?n*-1:n);
+  }
+  this.randomizeWind = function() {
+    var i;
+    vRndX = plusMinus(rnd(storm.vMaxX,0.2));
+    vRndY = rnd(storm.vMaxY,0.2);
+    if (this.flakes) {
+      for (i=0; i<this.flakes.length; i++) {
+        if (this.flakes[i].active) {
+          this.flakes[i].setVelocities();
+        }
+      }
+    }
+  };
+  this.scrollHandler = function() {
+    var i;
+    // "attach" snowflakes to bottom of window if no absolute bottom value was given
+    scrollY = (storm.flakeBottom ? 0 : parseInt(window.scrollY || document.documentElement.scrollTop || (noFixed ? document.body.scrollTop : 0), 10));
+    if (isNaN(scrollY)) {
+      scrollY = 0; // Netscape 6 scroll fix
+    }
+    if (!fixedForEverything && !storm.flakeBottom && storm.flakes) {
+      for (i=0; i<storm.flakes.length; i++) {
+        if (storm.flakes[i].active === 0) {
+          storm.flakes[i].stick();
+        }
+      }
+    }
+  };
+  this.resizeHandler = function() {
+    if (window.innerWidth || window.innerHeight) {
+      screenX = window.innerWidth - 16 - storm.flakeRightOffset;
+      screenY = (storm.flakeBottom || window.innerHeight);
+    } else {
+      screenX = (document.documentElement.clientWidth || document.body.clientWidth || document.body.scrollWidth) - (!isIE ? 8 : 0) - storm.flakeRightOffset;
+      screenY = storm.flakeBottom || document.documentElement.clientHeight || document.body.clientHeight || document.body.scrollHeight;
+    }
+    docHeight = document.body.offsetHeight;
+    screenX2 = parseInt(screenX/2,10);
+  };
+  this.resizeHandlerAlt = function() {
+    screenX = storm.targetElement.offsetWidth - storm.flakeRightOffset;
+    screenY = storm.flakeBottom || storm.targetElement.offsetHeight;
+    screenX2 = parseInt(screenX/2,10);
+    docHeight = document.body.offsetHeight;
+  };
+  this.freeze = function() {
+    // pause animation
+    if (!storm.disabled) {
+      storm.disabled = 1;
+    } else {
+      return false;
+    }
+    storm.timer = null;
+  };
+  this.resume = function() {
+    if (storm.disabled) {
+       storm.disabled = 0;
+    } else {
+      return false;
+    }
+    storm.timerInit();
+  };
+  this.toggleSnow = function() {
+    if (!storm.flakes.length) {
+      // first run
+      storm.start();
+    } else {
+      storm.active = !storm.active;
+      if (storm.active) {
+        storm.show();
+        storm.resume();
+      } else {
+        storm.stop();
+        storm.freeze();
+      }
+    }
+  };
+  this.stop = function() {
+    var i;
+    this.freeze();
+    for (i=0; i<this.flakes.length; i++) {
+      this.flakes[i].o.style.display = 'none';
+    }
+    storm.events.remove(window,'scroll',storm.scrollHandler);
+    storm.events.remove(window,'resize',storm.resizeHandler);
+    if (storm.freezeOnBlur) {
+      if (isIE) {
+        storm.events.remove(document,'focusout',storm.freeze);
+        storm.events.remove(document,'focusin',storm.resume);
+      } else {
+        storm.events.remove(window,'blur',storm.freeze);
+        storm.events.remove(window,'focus',storm.resume);
+      }
+    }
+  };
+  this.show = function() {
+    var i;
+    for (i=0; i<this.flakes.length; i++) {
+      this.flakes[i].o.style.display = 'block';
+    }
+  };
+  this.SnowFlake = function(type,x,y) {
+    var s = this;
+    this.type = type;
+    this.x = x||parseInt(rnd(screenX-20),10);
+    this.y = (!isNaN(y)?y:-rnd(screenY)-12);
+    this.vX = null;
+    this.vY = null;
+    this.vAmpTypes = [1,1.2,1.4,1.6,1.8]; // "amplification" for vX/vY (based on flake size/type)
+    this.vAmp = this.vAmpTypes[this.type] || 1;
+    this.melting = false;
+    this.meltFrameCount = storm.meltFrameCount;
+    this.meltFrames = storm.meltFrames;
+    this.meltFrame = 0;
+    this.twinkleFrame = 0;
+    this.active = 1;
+    this.fontSize = (10+(this.type/5)*10);
+    this.o = document.createElement('div');
+    this.o.innerHTML = storm.snowCharacter;
+    if (storm.className) {
+      this.o.setAttribute('class', storm.className);
+    }
+    this.o.style.color = storm.snowColor;
+    this.o.style.position = (fixedForEverything?'fixed':'absolute');
+    if (storm.useGPU && features.transform.prop) {
+      // GPU-accelerated snow.
+      this.o.style[features.transform.prop] = 'translate3d(0px, 0px, 0px)';
+    }
+    this.o.style.width = storm.flakeWidth+'px';
+    this.o.style.height = storm.flakeHeight+'px';
+    this.o.style.fontFamily = 'arial,verdana';
+    this.o.style.cursor = 'default';
+    this.o.style.overflow = 'hidden';
+    this.o.style.fontWeight = 'normal';
+    this.o.style.zIndex = storm.zIndex;
+    docFrag.appendChild(this.o);
+    this.refresh = function() {
+      if (isNaN(s.x) || isNaN(s.y)) {
+        // safety check
+        return false;
+      }
+      storm.setXY(s.o, s.x, s.y);
+    };
+    this.stick = function() {
+      if (noFixed || (storm.targetElement !== document.documentElement && storm.targetElement !== document.body)) {
+        s.o.style.top = (screenY+scrollY-storm.flakeHeight)+'px';
+      } else if (storm.flakeBottom) {
+        s.o.style.top = storm.flakeBottom+'px';
+      } else {
+        s.o.style.display = 'none';
+        s.o.style.bottom = '0%';
+        s.o.style.position = 'fixed';
+        s.o.style.display = 'block';
+      }
+    };
+    this.vCheck = function() {
+      if (s.vX>=0 && s.vX<0.2) {
+        s.vX = 0.2;
+      } else if (s.vX<0 && s.vX>-0.2) {
+        s.vX = -0.2;
+      }
+      if (s.vY>=0 && s.vY<0.2) {
+        s.vY = 0.2;
+      }
+    };
+    this.move = function() {
+      var vX = s.vX*windOffset, yDiff;
+      s.x += vX;
+      s.y += (s.vY*s.vAmp);
+      if (s.x >= screenX || screenX-s.x < storm.flakeWidth) { // X-axis scroll check
+        s.x = 0;
+      } else if (vX < 0 && s.x-storm.flakeLeftOffset < -storm.flakeWidth) {
+        s.x = screenX-storm.flakeWidth-1; // flakeWidth;
+      }
+      s.refresh();
+      yDiff = screenY+scrollY-s.y+storm.flakeHeight;
+      if (yDiff<storm.flakeHeight) {
+        s.active = 0;
+        if (storm.snowStick) {
+          s.stick();
+        } else {
+          s.recycle();
+        }
+      } else {
+        if (storm.useMeltEffect && s.active && s.type < 3 && !s.melting && Math.random()>0.998) {
+          // ~1/1000 chance of melting mid-air, with each frame
+          s.melting = true;
+          s.melt();
+          // only incrementally melt one frame
+          // s.melting = false;
+        }
+        if (storm.useTwinkleEffect) {
+          if (s.twinkleFrame < 0) {
+            if (Math.random() > 0.97) {
+              s.twinkleFrame = parseInt(Math.random() * 8, 10);
+            }
+          } else {
+            s.twinkleFrame--;
+            if (!opacitySupported) {
+              s.o.style.visibility = (s.twinkleFrame && s.twinkleFrame % 2 === 0 ? 'hidden' : 'visible');
+            } else {
+              s.o.style.opacity = (s.twinkleFrame && s.twinkleFrame % 2 === 0 ? 0 : 1);
+            }
+          }
+        }
+      }
+    };
+    this.animate = function() {
+      // main animation loop
+      // move, check status, die etc.
+      s.move();
+    };
+    this.setVelocities = function() {
+      s.vX = vRndX+rnd(storm.vMaxX*0.12,0.1);
+      s.vY = vRndY+rnd(storm.vMaxY*0.12,0.1);
+    };
+    this.setOpacity = function(o,opacity) {
+      if (!opacitySupported) {
+        return false;
+      }
+      o.style.opacity = opacity;
+    };
+    this.melt = function() {
+      if (!storm.useMeltEffect || !s.melting) {
+        s.recycle();
+      } else {
+        if (s.meltFrame < s.meltFrameCount) {
+          s.setOpacity(s.o,s.meltFrames[s.meltFrame]);
+          s.o.style.fontSize = s.fontSize-(s.fontSize*(s.meltFrame/s.meltFrameCount))+'px';
+          s.o.style.lineHeight = storm.flakeHeight+2+(storm.flakeHeight*0.75*(s.meltFrame/s.meltFrameCount))+'px';
+          s.meltFrame++;
+        } else {
+          s.recycle();
+        }
+      }
+    };
+    this.recycle = function() {
+      s.o.style.display = 'none';
+      s.o.style.position = (fixedForEverything?'fixed':'absolute');
+      s.o.style.bottom = 'auto';
+      s.setVelocities();
+      s.vCheck();
+      s.meltFrame = 0;
+      s.melting = false;
+      s.setOpacity(s.o,1);
+      s.o.style.padding = '0px';
+      s.o.style.margin = '0px';
+      s.o.style.fontSize = s.fontSize+'px';
+      s.o.style.lineHeight = (storm.flakeHeight+2)+'px';
+      s.o.style.textAlign = 'center';
+      s.o.style.verticalAlign = 'baseline';
+      s.x = parseInt(rnd(screenX-storm.flakeWidth-20),10);
+      s.y = parseInt(rnd(screenY)*-1,10)-storm.flakeHeight;
+      s.refresh();
+      s.o.style.display = 'block';
+      s.active = 1;
+    };
+    this.recycle(); // set up x/y coords etc.
+    this.refresh();
+  };
+  this.snow = function() {
+    var active = 0, flake = null, i, j;
+    for (i=0, j=storm.flakes.length; i<j; i++) {
+      if (storm.flakes[i].active === 1) {
+        storm.flakes[i].move();
+        active++;
+      }
+      if (storm.flakes[i].melting) {
+        storm.flakes[i].melt();
+      }
+    }
+    if (active<storm.flakesMaxActive) {
+      flake = storm.flakes[parseInt(rnd(storm.flakes.length),10)];
+      if (flake.active === 0) {
+        flake.melting = true;
+      }
+    }
+    if (storm.timer) {
+      features.getAnimationFrame(storm.snow);
+    }
+  };
+  this.mouseMove = function(e) {
+    if (!storm.followMouse) {
+      return true;
+    }
+    var x = parseInt(e.clientX,10);
+    if (x<screenX2) {
+      windOffset = -windMultiplier+(x/screenX2*windMultiplier);
+    } else {
+      x -= screenX2;
+      windOffset = (x/screenX2)*windMultiplier;
+    }
+  };
+  this.createSnow = function(limit,allowInactive) {
+    var i;
+    for (i=0; i<limit; i++) {
+      storm.flakes[storm.flakes.length] = new storm.SnowFlake(parseInt(rnd(flakeTypes),10));
+      if (allowInactive || i>storm.flakesMaxActive) {
+        storm.flakes[storm.flakes.length-1].active = -1;
+      }
+    }
+    storm.targetElement.appendChild(docFrag);
+  };
+  this.timerInit = function() {
+    storm.timer = true;
+    storm.snow();
+  };
+  this.init = function() {
+    var i;
+    for (i=0; i<storm.meltFrameCount; i++) {
+      storm.meltFrames.push(1-(i/storm.meltFrameCount));
+    }
+    storm.randomizeWind();
+    storm.createSnow(storm.flakesMax); // create initial batch
+    storm.events.add(window,'resize',storm.resizeHandler);
+    storm.events.add(window,'scroll',storm.scrollHandler);
+    if (storm.freezeOnBlur) {
+      if (isIE) {
+        storm.events.add(document,'focusout',storm.freeze);
+        storm.events.add(document,'focusin',storm.resume);
+      } else {
+        storm.events.add(window,'blur',storm.freeze);
+        storm.events.add(window,'focus',storm.resume);
+      }
+    }
+    storm.resizeHandler();
+    storm.scrollHandler();
+    if (storm.followMouse) {
+      storm.events.add(isIE?document:window,'mousemove',storm.mouseMove);
+    }
+    storm.animationInterval = Math.max(20,storm.animationInterval);
+    storm.timerInit();
+  };
+  this.start = function(bFromOnLoad) {
+    if (!didInit) {
+      didInit = true;
+    } else if (bFromOnLoad) {
+      // already loaded and running
+      return true;
+    }
+    if (typeof storm.targetElement === 'string') {
+      var targetID = storm.targetElement;
+      storm.targetElement = document.getElementById(targetID);
+      if (!storm.targetElement) {
+        throw new Error('Snowstorm: Unable to get targetElement "'+targetID+'"');
+      }
+    }
+    if (!storm.targetElement) {
+      storm.targetElement = (document.body || document.documentElement);
+    }
+    if (storm.targetElement !== document.documentElement && storm.targetElement !== document.body) {
+      // re-map handler to get element instead of screen dimensions
+      storm.resizeHandler = storm.resizeHandlerAlt;
+      //and force-enable pixel positioning
+      storm.usePixelPosition = true;
+    }
+    storm.resizeHandler(); // get bounding box elements
+    storm.usePositionFixed = (storm.usePositionFixed && !noFixed && !storm.flakeBottom); // whether or not position:fixed is to be used
+    if (window.getComputedStyle) {
+      // attempt to determine if body or user-specified snow parent element is relatlively-positioned.
+      try {
+        targetElementIsRelative = (window.getComputedStyle(storm.targetElement, null).getPropertyValue('position') === 'relative');
+      } catch(e) {
+        // oh well
+        targetElementIsRelative = false;
+      }
+    }
+    fixedForEverything = storm.usePositionFixed;
+    if (screenX && screenY && !storm.disabled) {
+      storm.init();
+      storm.active = true;
+    }
+  };
+  function doDelayedStart() {
+    window.setTimeout(function() {
+      storm.start(true);
+    }, 20);
+    // event cleanup
+    storm.events.remove(isIE?document:window,'mousemove',doDelayedStart);
+  }
+  function doStart() {
+    if (!storm.excludeMobile || !isMobile) {
+      doDelayedStart();
+    }
+    // event cleanup
+    storm.events.remove(window, 'load', doStart);
+  }
+  // hooks for starting the snow
+  if (storm.autoStart) {
+    storm.events.add(window, 'load', doStart, false);
+  }
+  return this;
+}(window, document));
+</script>
+
+
+<!--==========================
+Header
+============================-->
+<header id="header">
+
+
+    <div class="container">
+
+        <div class="logo float-left">
+            <!--<a href="#header"><img src="img/ProfNdiku.jpg" alt=""></a>-->
+            <!-- Uncomment below if you prefer to use an image logo -->
+            <a class="text-light"><a href="#home" class="btn"><img class="img-fluid" src="img/logo.JPG"
+                                                                   alt="">
+                Globalfora Research Group Ltd</a></a>
+        </div>
+        <nav class="main-nav float-right d-none d-lg-block">
+            <ul>
+                <li class="active"><a href="#intro">Home</a></li>
+                <li><a href="#about">About Us</a></li>
+                <li><a href="#services">Services</a></li>
+                <li><a href="#portfolio">Portfolio</a></li>
+                <!--<li><a href="#team">Team</a></li>-->
+                <li class="drop-down"><a href="#team">Team</a>
+                    <ul>
+                        <li><a href="#team">Team Bio</a></li>
+                        <li><a href=https://globalforarg.com/webmail
+                               target="_blank">Members Login</a></li>
+                                <li><a href=https://dashboard.tawk.to/login#/dashboard
+                               target="_blank">Chatbot Login</a></li>
+
+
+                        <!--</div>-->
+                        <!--<ul class="drop-down"><a href="#">Members Login</a>-->
+                        <!--</ul>-->
+                        <ul>
+                            <!--<li><a href="#">Team Bio</a></li>-->
+                            <!--<li><a href="#">Members Login</a></li>-->
+                            <!--<li><a href="#">Deep Drop Down 3</a></li>-->
+
+                        </ul>
+                        </li>
+                        <!--<li><a href="#">Drop Down 3</a></li>-->
+                        <!--<li><a href="#">Drop Down 4</a></li>-->
+
+                    </ul>
+                </li>
+                <li><a href="#footer">Contact Us</a></li>
+            </ul>
+        </nav><!-- .main-nav -->
+    </div>
+
+
+</header><!-- #header -->
+<!--<br><br><br>-->
+
+
+<!--==========================
+  Intro Section
+============================-->
+<section id="intro" class="clearfix">
+    <div class="container d-flex h-25">
+        <div class="row justify-content-center align-self-right">
+            <div class="col-md-6 intro-info order-md-first order-last">
+                <div class="container d-flex h-40">
+                    <div class="row justify-content-center align-items-left">
+                        <div class="col-md-6 col-md-12 banner-left">
+                            <div class="vsc-paragraph-child-block text- text-xs- padding-bottom-default display-3 mb-4 text-black child-section-Text ">
+                                <!--<div class="animated text-dark text-left text-white">-->
+                                <h2 class="animated"><br>
+                                    <span style="color: rgba(3,3,3,0.84); font-style: unset"> Globalized research and innovation for sustainable development.</span>
+                                    <!--<div class="an-words an-words-2">-->
+                                    <!--<span>innovation,</span>-->
+                                    <!--<span>innovation,</span>-->
+                                    <!--<span>innovation,</span>-->
+                                    <!--</div>-->
+                                    <!--<br><br>-->
+                                    <!--<span>for</span><br>-->
+                                    <!--<div class="an-words an-words-2" align="left">-->
+                                    <!--<h2 class="an-sentence">-->
+                                    <!--<span><b>sustainable <br> development.</b></span>-->
+                                    <!--<span><b>sustainable <br> development.</b></span>-->
+                                    <!--<span><b>sustainable <br> development.</b></span>-->
+                                    <!--</h2>-->
+                                    <!--</div>-->
+                                    <!--</h2>-->
+                                    <!--</div>-->
+
+
+                                    <!--<style>-->
+                                    <!--body {-->
+                                    <!--}-->
+
+                                    <!--.an-wrapper {-->
+                                    <!--width: 100%;-->
+                                    <!--top: 60px;-->
+                                    <!--position: relative;-->
+                                    <!--margin: 0 auto;-->
+                                    <!--font-family: sans-serif;-->
+                                    <!--line-spacing: -1em;-->
+                                    <!--padding: 25px;-->
+                                    <!--}-->
+
+                                    <!--.an-sentence {-->
+                                    <!--margin: 0;-->
+                                    <!--text-align: left;-->
+                                    <!--}-->
+
+                                    <!--.an-sentence span {-->
+                                    <!--color: rgba(3, 3, 3, 0.87);-->
+                                    <!--white-space: nowrap;-->
+                                    <!--font-size: 120%;-->
+                                    <!--font-weight: bolder;-->
+                                    <!--}-->
+
+                                    <!--.an-words {-->
+                                    <!--display: ruby-base;-->
+                                    <!--text-indent: 10px;-->
+                                    <!--}-->
+
+                                    <!--.an-words span {-->
+                                    <!--position: absolute;-->
+                                    <!--opacity: 0;-->
+                                    <!--overflow: hidden;-->
+                                    <!--width: 100%;-->
+                                    <!--color: #fff;-->
+                                    <!--}-->
+
+                                    <!--.an-words-1 span {-->
+                                    <!--animation: rotateWordsFirst 15s linear infinite 0s;-->
+                                    <!--}-->
+
+                                    <!--.an-words-2 span {-->
+                                    <!--animation: rotateWordsSecond 15s linear infinite 0s;-->
+                                    <!--}-->
+
+                                    <!--.an-words span:nth-child(2) {-->
+                                    <!--animation-delay: 5s;-->
+                                    <!--color: rgba(3, 3, 3, 0.17);-->
+                                    <!--}-->
+
+                                    <!--.an-words span:nth-child(3) {-->
+                                    <!--animation-delay: 5s;-->
+                                    <!--color: #ff0f84;-->
+                                    <!--}-->
+
+                                    <!--@keyframes rotateWordsFirst {-->
+                                    <!--0% {-->
+                                    <!--opacity: 1;-->
+                                    <!--animation-timing-function: ease-in;-->
+                                    <!--height: 0px;-->
+                                    <!--}-->
+                                    <!--8% {-->
+                                    <!--opacity: 1;-->
+                                    <!--height: 60px;-->
+                                    <!--}-->
+                                    <!--19% {-->
+                                    <!--opacity: 1;-->
+                                    <!--height: 60px;-->
+                                    <!--}-->
+                                    <!--25% {-->
+                                    <!--opacity: 0;-->
+                                    <!--height: 60px;-->
+                                    <!--}-->
+                                    <!--100% {-->
+                                    <!--opacity: 0;-->
+                                    <!--}-->
+                                    <!--}-->
+
+                                    <!--@keyframes rotateWordsSecond {-->
+                                    <!--0% {-->
+                                    <!--opacity: 1;-->
+                                    <!--animation-timing-function: ease-in;-->
+                                    <!--width: 0px;-->
+                                    <!--}-->
+                                    <!--10% {-->
+                                    <!--opacity: 0.3;-->
+                                    <!--width: 0px;-->
+                                    <!--}-->
+                                    <!--20% {-->
+                                    <!--opacity: 1;-->
+                                    <!--width: 100%;-->
+                                    <!--}-->
+                                    <!--27% {-->
+                                    <!--opacity: 0;-->
+                                    <!--width: 100%;-->
+                                    <!--}-->
+                                    <!--100% {-->
+                                    <!--opacity: 0;-->
+                                    <!--}-->
+                                    <!--}-->
+                                    <!--</style>-->
+
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!--</section>-->
+
+                <div>
+                    <br><br><br><br><br><br>
+                    <a href="#footer" class="btn-get-started scrollto" style="background: #fd070a;">Happy Holidays!</a>
+                </div>
+            </div>
+
+            <div class="col-md-6 intro-img order-md-first order-last"><br><br><br><br>
+                <!--<img style="list-style-image: initial;" src="img/teampic.JPG" alt="" class="img-fluid">-->
+
+                <style>
+                    * {
+                        box-sizing: border-box;
+                    }
+
+                    body {
+                        font-family: Verdana, sans-serif;
+                    }
+
+                    .mySlides {
+                        display: none;
+                    }
+
+                    img {
+                        vertical-align: middle;
+                    }
+
+                    /* Slideshow container */
+                    .slideshow-container {
+                        max-width: 1000px;
+                        position: relative;
+                        margin: auto;
+                    }
+
+                    /* Caption text */
+                    .text {
+                        color: #f2f2f2;
+                        font-size: 15px;
+                        padding: 8px 12px;
+                        position: absolute;
+                        bottom: 8px;
+                        width: 100%;
+                        text-align: center;
+                    }
+
+                    /* Number text (1/5 etc) */
+                    .numbertext {
+                        color: #f0e7f2;
+                        font-size: 12px;
+                        padding: 8px 12px;
+                        position: absolute;
+                        top: 0;
+                    }
+
+                    /* The dots/bullets/indicators */
+                    .dot {
+                        height: 15px;
+                        width: 15px;
+                        margin: 0 2px;
+                        background-color: rgba(211, 252, 255, 0.87);
+                        border-radius: 50%;
+                        display: inline-block;
+                        transition: background-color 0.6s ease;
+                    }
+
+                    .active {
+                        background-color: rgba(3, 2, 2, 0.07);
+                        border-style: hidden;
+                        border-color: #1bb1dc;
+                        border-spacing: 40px;
+                    }
+
+                    /* Fading animation */
+                    .fade {
+                        -webkit-animation-name: fade;
+                        -webkit-animation-duration: 15.0s;
+                        animation-name: fade;
+                        animation-duration: 15.0s;
+                    }
+
+                    @-webkit-keyframes fade {
+                        from {
+                            opacity: .9
+                        }
+                        to {
+                            opacity: 1
+                        }
+                    }
+
+                    @keyframes fade {
+                        from {
+                            opacity: .9
+                        }
+                        to {
+                            opacity: 1
+                        }
+                    }
+
+                    /* On smaller screens, decrease text size */
+                    @media only screen and (max-width: 300px) {
+                        .text {
+                            font-size: 11px
+                        }
+                    }
+                </style>
+                <br>
+
+                <div class="slideshow-container">
+
+                    <div class="mySlides fade">
+                        <div class="numbertext">1 / 5</div>
+                        <!--<div style="border-style: dashed"></div>-->
+                        <div style="border-style: dashed"><img src="img/DSC_0721.JPG" style="width:121%"></div>
+                        <!--<div style="border-style: dashed"></div>-->
+                    </div>
+
+                    <div class="mySlides fade">
+                        <div class="numbertext">2 / 5</div>
+                        <!--<div style="border-style: dashed"></div>-->
+                        <div style="border-style: dashed"><img src="img/DSC_0754.JPG" style="width:121%"></div>
+                        <!--<div style="border-style: dashed"></div>-->
+                    </div>
+
+                    <div class="mySlides fade">
+                        <div class="numbertext">3 / 5</div>
+                        <!--<div style="border-style: dashed"></div>-->
+                        <div style="border-style: dashed"><img src="img/DSC_0742.JPG" style="width:121%"></div>
+                        <!--<div style="border-style: dashed"></div>-->
+                    </div>
+
+                    <div class="mySlides fade">
+                        <div class="numbertext">4 / 5</div>
+                        <!--<div style="border-style: dashed"></div>-->
+                        <div style="border-style: dashed"><img src="img/DSC_0634.JPG" style="width:121%"></div>
+                        <!--<div style="border-style: dashed"></div>-->
+                    </div>
+
+
+                    <div class="mySlides fade">
+                        <div class="numbertext">5 / 5</div>
+                        <!--<div style="border-style: dashed"></div>-->
+                        <div style="border-style: dashed"><img src="img/teampic.JPG" style="width:121%"></div>
+                        <!--<div style="border-style: dashed"></div>-->
+                    </div>
+
+
+                </div>
+                <br>
+
+                <div style="text-align:center">
+                    <span class="dot"></span>
+                    <span class="dot"></span>
+                    <span class="dot"></span>
+                    <span class="dot"></span>
+                    <span class="dot"></span>
+
+                </div>
+
+                <script>
+                    var slideIndex = 0;
+                    showSlides();
+
+                    function showSlides() {
+                        var i;
+                        var slides = document.getElementsByClassName("mySlides");
+                        var dots = document.getElementsByClassName("dot");
+                        for (i = 0; i < slides.length; i++) {
+                            slides[i].style.display = "none";
+                        }
+                        slideIndex++;
+                        if (slideIndex > slides.length) {
+                            slideIndex = 1
+                        }
+                        for (i = 0; i < dots.length; i++) {
+                            dots[i].className = dots[i].className.replace(" active", "");
+                        }
+                        slides[slideIndex - 1].style.display = "block";
+                        dots[slideIndex - 1].className += " active";
+                        setTimeout(showSlides, 10000); // Change image every 10 seconds
+                    }
+                </script>
+
+            </div>
+
+
+        </div>
+        <!--</div>-->
+        <!--</sec id="main">-->
+    </div>
+</section><!-- #intro -->
+<!-- Start Banner Area -->
+</section>
+<!-- End Banner Area -->
+
+<!--<main id="main">-->
+
+<!--==========================
+  About Us Section
+============================-->
+<section id="about">
+
+    <div class="container">
+        <div class="row">
+
+            <div class="col-lg-5 col-md-6">
+                <div class="about-img">
+                    <img src="img/DSC_0742.JPG" alt="">
+                </div>
+            </div>
+
+            <div class="col-lg-7 col-md-6">
+                <div class="about-content">
+                    <h2>About Us</h2>
+                    <p>Globalfora Research Group (GRG) is an international group registered by the government of Kenya,
+                        registration certificate No. PVT-PJUL3P8. Its membership comprises researchers from different
+                        parts of the world, with diverse interests and disciplines in education, administration,
+                        engineering, community development, tourism and hospitality, project management, statistics,
+                        social work, psychology, human resource management, Nutrition and public health, guidance and
+                        counseling, Business leadership and management, Designing, Assessment and evaluation,
+                        Information and Communication Technology, project planning.
+                        <br><br>
+                        Our group is guided by the following emblems:</p>
+                    <h3>Vision</h3>
+                    <p>Leading in Innovative Research, Publications, Consultancy, Education and Training.</p>
+                    <h3>Mission</h3>
+                    <p>To build synergy for innovative research, publication, consultancy, education and
+                        training
+                        for sustainable development</p>
+                    <h3>Philosophy</h3>
+                    <p>Globalized research and innovation for sustainable development.</p>
+                    <ul>
+                        <h3>Core Values</h3>
+                        <li><i class="ion-android-checkmark-circle"></i> Innovativeness
+                        </li>
+                        <li><i class="ion-android-checkmark-circle"></i> Honesty
+                        </li>
+                        <li><i class="ion-android-checkmark-circle"></i> Fairness
+                        </li>
+                        <li><i class="ion-android-checkmark-circle"></i> Accountability
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</section><!-- #about -->
+
+
+<!--==========================
+  Services Section
+============================-->
+<section id="services" class="section-bg">
+    <div class="container">
+
+        <header class="section-header">
+            <h3>Services</h3>
+            <p>Globalfora Research Group provides services in:</p>
+        </header>
+
+        <div class="row">
+
+            <div class="col-md-6 col-lg-4 wow bounceInUp" data-wow-duration="1.4s">
+                <div class="box">
+                    <div class="icon" style="background: #fceef3;"><i class="ion-ios-analytics-outline"
+                                                                      style="color: #ff689b;"></i></div>
+                    <h4 class="title"><a href="">Consultancy</a></h4>
+                    <p class="description">• Education
+                        • Research
+                        • Project planning <br>
+                        • Social work and development planning <br>
+                        • Public Administration <br>
+                        • Tourism and Hospitality <br>
+                        • Human Resource Management <br>
+                        • Information Technology <br>
+                        • Business Leadership and Management <br>
+                        • Assessment and Evaluation <br>
+                        • Guidance and Counselling
+                        • Social Work and Health Care <br>
+                    </p>
+                </div>
+            </div>
+
+
+            <div class="col-md-6 col-lg-4 wow bounceInUp" data-wow-delay="0.1s" data-wow-duration="1.4s">
+                <div class="box">
+                    <div class="icon" style="background: #e6fdfc;"><i class="ion-ios-paper-outline"
+                                                                      style="color: #3fcdc7;"></i></div>
+                    <h4 class="title"><a href="">Research</a></h4>
+                    <p class="description">• Student Advisory Researcher Services <br>
+                        • Modelling research Designs <br>
+                        • Developing research tools <br>
+                        • Proposal writing <br>
+                        • Reporting findings <br>
+                        • Publishing reports in Globalfora Research Journal (GRJ) <br>
+                        • Organizing International Research Conferences <br>
+                    </p>
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-4 wow bounceInUp" data-wow-delay="0.1s" data-wow-duration="1.4s">
+                <div class="box">
+                    <div class="icon" style="background: #eafde7;"><i class="ion-ios-speedometer-outline"
+                                                                      style="color:#41cf2e;"></i></div>
+                    <h4 class="title"><a href="">Training</a></h4>
+                    <p class="description">• Guidance and Counselling <br>
+                        • Social work and Health Care <br>
+                        • Project Planning and Management <br>
+                        • Results Oriented Management <br>
+                        • Human Resource Management <br>
+                        • Community Advocacy <br>
+                        • Human Rights Based Approach to Development <br>
+                        • Nutrition
+                        • Public Health <br>
+                    </p>
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-4 wow bounceInUp" data-wow-duration="1.4s">
+                <div class="box">
+                    <div class="icon" style="background: #fceef3;"><i class="ion-ios-alarm"
+                                                                      style="color: #ff689b;"></i></div>
+                    <h4 class="title"><a href="">Education</a></h4>
+                    <p class="description">Our Globalfora Research Group of Schools is modeled to offer
+                        local, regional
+                        and international programs through a strong network of shareholders. The model
+                        emphasizes
+
+                        innovation and creativity in competency based teaching and learning.
+                    </p>
+                </div>
+            </div>
+
+            <div class="col-md-6 col-lg-4 wow bounceInUp" data-wow-duration="1.4s">
+                <div class="box">
+                    <div class="icon" style="background: #fff0da;"><i class="ion-ios-bookmarks-outline"
+                                                                      style="color: #e98e06;"></i></div>
+                    <h4 class="title"><a href="">Press</a></h4>
+                    <p class="description">• Publishing Research findings <br>
+                        • Publishing Textbooks <br>
+                        • Reference Materials <br>
+                        • Curriculum Materials <br>
+                        • Course Outlines <br>
+                        • Training materials <br>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section><!-- #services -->
+
+<!--==========================
+  Why Us Section
+============================-->
+<section id="why-us" class="wow fadeIn">
+    <div class="container-fluid">
+
+        <header class="section-header">
+            <h3>Why choose us?</h3>
+            <!--<p>Our Globalfora Research Group Academies (High Schools) offer Innovative Competence Based-->
+            <!--Curriculum.</p>-->
+        </header>
+
+        <div class="row">
+
+            <div class="col-lg-6">
+                <div class="why-us-img">
+                    <img src="img/DSC_0312.JPG" alt="" class="img-fluid">
+                </div>
+            </div>
+
+            <div class="col-lg-6">
+                <div class="why-us-content">
+                    <!--<p>Globalfora Research Group Ltd.</p>-->
+                    <!--<p>-->
+                    <!--Globalfora Research Group Ltd-->
+                    <!--</p>-->
+
+                    <div class="features wow bounceInUp clearfix">
+                        <i class="fa fa-diamond" style="color: #f01c82;"></i>
+                        <h4>We're experienced.</h4>
+                        <p>Our team has been in the business for over 20 years and we bring a wealth of experience to
+                            every job we do.</p>
+                    </div>
+
+                    <div class="features wow bounceInUp clearfix">
+                        <i class="fa fa-object-group" style="color: #ff76fb;"></i>
+                        <h4>We care.</h4>
+                        <p>We always take exceptional care to ensure we exceed our client's expectations at every
+                            opportunity.</p>
+                    </div>
+
+                    <div class="features wow bounceInUp clearfix">
+                        <i class="fa fa-language" style="color: #589af1;"></i>
+                        <h4>We're creative.</h4>
+                        <p>We pride ourselves on offering more than just a product/service. We have a passion for
+                            creativity that influences every job that we handle. We know that the best product/service
+                            is that makes an impact.</p>
+                    </div>
+                    <div class="features wow bounceInUp clearfix">
+                        <i class="fa fa-building" style="color: #2bf122;"></i>
+                        <h4>We're competitive. </h4>
+                        <p>We understand that cost is important and we offer great value for money at all times.</p>
+                    </div>
+                    <div class="features wow bounceInUp clearfix">
+                        <i class="fa fa-address-book" style="color: #ff128b;"></i>
+                        <h4>We're reliable.</h4>
+                        <p>We understand the importance of getting it right, first time and on time. We won't let you
+                            down. </p>
+                    </div>
+                    <div class="features wow bounceInUp clearfix">
+                        <i class="fa fa-address-card-o" style="color: rgba(241,113,16,0.87);"></i>
+                        <h4>We're quality-focused.</h4>
+                        <p>We focus on creating quality products and services that get results. </p>
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <!--<div class="container">-->
+    <!--<div class="row counters">-->
+
+    <!--<div class="col-lg-3 col-6 text-center">-->
+    <!--<span data-toggle="counter-up">100</span>-->
+    <!--<p>Clients</p>-->
+    <!--</div>-->
+
+    <!--<div class="col-lg-3 col-6 text-center">-->
+    <!--<span data-toggle="counter-up">100</span>-->
+    <!--<p>Projects</p>-->
+    <!--</div>-->
+
+    <!--<div class="col-lg-3 col-6 text-center">-->
+    <!--<span data-toggle="counter-up">100</span>-->
+    <!--<p>Hours Of Support</p>-->
+    <!--</div>-->
+
+    <!--<div class="col-lg-3 col-6 text-center">-->
+    <!--<span data-toggle="counter-up">100</span>-->
+    <!--<p>Hard Workers</p>-->
+    <!--</div>-->
+
+    <!--</div>-->
+
+    <!--</div>-->
+</section>
+
+<!--==========================
+  Call To Action Section
+============================-->
+<section id="call-to-action" class="wow fadeInUp">
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-9 text-center text-lg-left">
+                <h3 class="cta-title">Call To Action</h3>
+                <p class="cta-text"> Talk to us now.</p>
+            </div>
+            <div class="col-lg-3 cta-btn-container text-center">
+                <a class="cta-btn align-middle" href="#footer">Click Here</a>
+            </div>
+        </div>
+
+    </div>
+</section><!-- #call-to-action -->
+
+<!--==========================
+  Portfolio Section
+============================-->
+<section id="portfolio" class="section-bg">
+    <div class="container">
+
+        <header class="section-header">
+            <h3 class="section-title">Our Portfolio</h3>
+        </header>
+
+        <div class="row">
+            <div class="col-lg-12">
+                <ul id="portfolio-flters">
+                    <li data-filter="*" class="filter-active">All</li>
+                    <li data-filter=".filter-app">Consultancy</li>
+                    <li data-filter=".filter-card">Press</li>
+                    <li data-filter=".filter-web">Education</li>
+                    <li data-filter=".filter-web">Research</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="row portfolio-container">
+
+            <div class="col-lg-4 col-md-6 portfolio-item filter-app">
+                <div class="portfolio-wrap">
+                    <img src="img/DSC_0315.JPG" class="img-fluid" alt="">
+                    <div class="portfolio-info">
+                        <h4><a href="#">Consultancy</a></h4>
+                        <!--<p>Consultancy</p>-->
+                        <div>
+                            <a href="img/DSC_0315.JPG" data-lightbox="portfolio" data-title="Consultancy"
+                               class="link-preview" title="Preview"><i class="ion ion-eye"></i></a>
+                            <a href="#" class="link-details" title="More Details"><i
+                                    class="ion ion-android-open"></i></a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-4 col-md-6 portfolio-item filter-web" data-wow-delay="0.1s">
+                <div class="portfolio-wrap">
+                    <img src="img/DSC_0317.JPG" class="img-fluid" alt="">
+                    <div class="portfolio-info">
+                        <h4><a href="#">Education</a></h4>
+                        <!--<p>Education</p>-->
+                        <div>
+                            <a href="img/DSC_0317.JPG" class="link-preview" data-lightbox="portfolio"
+                               data-title="Education" title="Preview"><i class="ion ion-eye"></i></a>
+                            <a href="#" class="link-details" title="More Details"><i
+                                    class="ion ion-android-open"></i></a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-4 col-md-6 portfolio-item filter-app" data-wow-delay="0.2s">
+                <div class="portfolio-wrap">
+                    <img src="img/DSC_0354.JPG" class="img-fluid" alt="">
+                    <div class="portfolio-info">
+                        <h4><a href="#">Press</a></h4>
+                        <!--<p>Press</p>-->
+                        <div>
+                            <a href="img/DSC_0354.JPG" class="link-preview" data-lightbox="portfolio"
+                               data-title="Press" title="Preview"><i class="ion ion-eye"></i></a>
+                            <a href="#" class="link-details" title="More Details"><i
+                                    class="ion ion-android-open"></i></a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-4 col-md-6 portfolio-item filter-card">
+                <div class="portfolio-wrap">
+                    <img src="img/DSC_0370.JPG" class="img-fluid" alt="">
+                    <div class="portfolio-info">
+                        <h4><a href="#">Research</a></h4>
+                        <!--<p>Research</p>-->
+                        <div>
+                            <a href="img/DSC_0370.JPG" class="link-preview" data-lightbox="portfolio"
+                               data-title="Research" title="Preview"><i class="ion ion-eye"></i></a>
+                            <a href="#" class="link-details" title="More Details"><i
+                                    class="ion ion-android-open"></i></a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-4 col-md-6 portfolio-item filter-web" data-wow-delay="0.1s">
+                <div class="portfolio-wrap">
+                    <img src="img/DSC_0382.JPG" class="img-fluid" alt="">
+                    <div class="portfolio-info">
+                        <h4><a href="#">Education</a></h4>
+                        <!--<p>Education</p>-->
+                        <div>
+                            <a href="img/DSC_0382.JPG" class="link-preview" data-lightbox="portfolio"
+                               data-title="Education" title="Preview"><i class="ion ion-eye"></i></a>
+                            <a href="#" class="link-details" title="More Details"><i
+                                    class="ion ion-android-open"></i></a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-4 col-md-6 portfolio-item filter-app" data-wow-delay="0.2s">
+                <div class="portfolio-wrap">
+                    <img src="img/DSC_0404.JPG" class="img-fluid" alt="">
+                    <div class="portfolio-info">
+                        <h4><a href="#">Training</a></h4>
+                        <!--<p>Research</p>-->
+                        <div>
+                            <a href="img/DSC_0404.JPG" class="link-preview" data-lightbox="portfolio"
+                               data-title="Training" title="Preview"><i class="ion ion-eye"></i></a>
+                            <a href="#" class="link-details" title="More Details"><i
+                                    class="ion ion-android-open"></i></a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-4 col-md-6 portfolio-item filter-card">
+                <div class="portfolio-wrap">
+                    <img src="img/DSC_0418.JPG" class="img-fluid" alt="">
+                    <div class="portfolio-info">
+                        <h4><a href="#">Education</a></h4>
+                        <!--<p>Education</p>-->
+                        <div>
+                            <a href="img/DSC_0418.JPG" class="link-preview" data-lightbox="portfolio"
+                               data-title="Education" title="Preview"><i class="ion ion-eye"></i></a>
+                            <a href="#" class="link-details" title="More Details"><i
+                                    class="ion ion-android-open"></i></a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-4 col-md-6 portfolio-item filter-card" data-wow-delay="0.1s">
+                <div class="portfolio-wrap">
+                    <img src="img/DSC_0431.JPG" class="img-fluid" alt="">
+                    <div class="portfolio-info">
+                        <h4><a href="#">Research</a></h4>
+                        <!--<p>Research</p>-->
+                        <div>
+                            <a href="img/DSC_0431.JPG" class="link-preview" data-lightbox="portfolio"
+                               data-title="Research" title="Preview"><i class="ion ion-eye"></i></a>
+                            <a href="#" class="link-details" title="More Details"><i
+                                    class="ion ion-android-open"></i></a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-4 col-md-6 portfolio-item filter-web" data-wow-delay="0.2s">
+                <div class="portfolio-wrap">
+                    <img src="img/DSC_0435.JPG" class="img-fluid" alt="">
+                    <div class="portfolio-info">
+                        <h4><a href="#">Consultancy</a></h4>
+                        <!--<p>Consultancy</p>-->
+                        <div>
+                            <a href="img/DSC_0435.JPG" class="link-preview" data-lightbox="portfolio"
+                               data-title="Consultancy" title="Preview"><i class="ion ion-eye"></i></a>
+                            <a href="#" class="link-details" title="More Details"><i
+                                    class="ion ion-android-open"></i></a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section><!-- #portfolio -->
+
+<!--==========================
+  Clients Section
+============================-->
+<!--<section id="testimonials">-->
+<!--<div class="container">-->
+
+<!--<header class="section-header">-->
+<!--<h3>Testimonials</h3>-->
+<!--</header>-->
+
+<!--<div class="row justify-content-center">-->
+<!--<div class="col-lg-8">-->
+
+<!--<div class="owl-carousel testimonials-carousel wow fadeInUp">-->
+
+<!--<div class="testimonial-item">-->
+<!--<img src="img/IMG_7782%20Vin.jpg" class="testimonial-img" alt="">-->
+<!--<h3>Vincent Cheruiyot</h3>-->
+<!--<h4>Developer @ ENVI Experts</h4>-->
+<!--<p>-->
+<!--Globalfora is great go-to-place for everyone.-->
+<!--</p>-->
+<!--</div>-->
+
+<!--<div class="testimonial-item">-->
+<!--<img src="img/IMG_7782%20Vin.jpg" class="testimonial-img" alt="">-->
+<!--<h3>Vincent Cheruiyot</h3>-->
+<!--<h4>Developer @ ENVI Experts</h4>-->
+<!--<p>-->
+<!--Globalfora is great go-to-place for everyone.-->
+<!--</p>-->
+<!--</div>-->
+
+<!--<div class="testimonial-item">-->
+<!--<img src="img/IMG_7782%20Vin.jpg" class="testimonial-img" alt="">-->
+<!--<h3>Vincent Cheruiyot</h3>-->
+<!--<h4>Developer @ ENVI Experts</h4>-->
+<!--<p>-->
+<!--Globalfora is great go-to-place for everyone.-->
+<!--</p>-->
+<!--</div>-->
+
+<!--<div class="testimonial-item">-->
+<!--<img src="img/IMG_7782%20Vin.jpg" class="testimonial-img" alt="">-->
+<!--<h3>Vincent Cheruiyot</h3>-->
+<!--<h4>Developer @ ENVI Experts</h4>-->
+<!--<p>-->
+<!--Globalfora is great go-to-place for everyone.-->
+<!--</p>-->
+<!--</div>-->
+
+<!--</div>-->
+
+<!--</div>-->
+<!--</div>-->
+
+
+<!--</div>-->
+<!--</section>&lt;!&ndash; #testimonials &ndash;&gt;-->
+
+<!--==========================
+  Team Section
+============================-->
+<section id="team" class="section-bg">
+    <div class="container">
+        <!--<div class="section-header">-->
+        <!--<h3>Team</h3>-->
+        <!--<p>Over 50+ years of experience</p>-->
+        <!--</div>-->
+
+        <!--<div class="row">-->
+
+        <!--<div class="col-lg-3 col-md-6 wow fadeInUp">-->
+        <!--<div class="member">-->
+        <!--<img src="img/ProfNdiku.jpg" class="img-fluid" alt="">-->
+        <!--<div class="member-info">-->
+        <!--<div class="member-info-content">-->
+        <!--<h4>Prof. Lazarus Ndiku Makewa</h4>-->
+        <!--<span>Founder, Director and Chairperson</span>-->
+
+        <!--</div>-->
+        <!--</div>-->
+        <!--</div>-->
+        <!--</div>-->
+
+        <!--<div class="col-lg-3 col-md-6 wow fadeInUp" data-wow-delay="0.1s">-->
+        <!--<div class="member">-->
+        <!--<img src="img/MrEsau.jpg" class="img-fluid" alt="">-->
+        <!--<div class="member-info">-->
+        <!--<div class="member-info-content">-->
+        <!--<h4>Mr. Esau Murongo</h4>-->
+        <!--&lt;!&ndash;<h6><i><b>Director</b></i></h6>&ndash;&gt;-->
+        <!--&lt;!&ndash;<span>Director</span>&ndash;&gt;-->
+
+        <!--</div>-->
+        <!--</div>-->
+        <!--</div>-->
+        <!--</div>-->
+
+        <!--<div class="col-lg-3 col-md-6 wow fadeInUp" data-wow-delay="0.2s">-->
+        <!--<div class="member">-->
+        <!--<img src="img/DrNaisujaki.jpg" class="img-fluid" alt="">-->
+        <!--<div class="member-info">-->
+        <!--<div class="member-info-content">-->
+        <!--<h4>Dr. Naisujaki Lyimo</h4>-->
+        <!--<span>Director</span>-->
+
+        <!--</div>-->
+        <!--</div>-->
+        <!--</div>-->
+        <!--</div>-->
+
+        <!--<div class="col-lg-3 col-md-6 wow fadeInUp" data-wow-delay="0.3s">-->
+        <!--<div class="member">-->
+        <!--<img src="img/MrNyaboga.jpg" class="img-fluid" alt="">-->
+        <!--<div class="member-info">-->
+        <!--<div class="member-info-content">-->
+        <!--<h4>Mr. Enock Nyaboga</h4>-->
+        <!--<span>Director</span>-->
+        <!--</div>-->
+        <!--</div>-->
+        <!--</div>-->
+        <!--</div>-->
+
+        <!--<div class="col-lg-3 col-md-6 wow fadeInUp" data-wow-delay="0.3s">-->
+        <!--<div class="member">-->
+        <!--<img src="img/DrJosephine.jpg" class="img-fluid" alt="">-->
+        <!--<div class="member-info">-->
+        <!--<div class="member-info-content">-->
+        <!--<h4>Dr. Josephine Mbithe Mutiea</h4>-->
+        <!--<span>Director</span>-->
+        <!--</div>-->
+        <!--</div>-->
+        <!--</div>-->
+        <!--</div>-->
+
+        <!--<div class="col-lg-3 col-md-6 wow fadeInUp" data-wow-delay="0.3s">-->
+        <!--<div class="member">-->
+        <!--<img src="img/DrSophia.jpg" class="img-fluid" alt="">-->
+        <!--<div class="member-info">-->
+        <!--<div class="member-info-content">-->
+        <!--<h4>Dr. Sophia Laiser John</h4>-->
+        <!--<span>Director</span>-->
+        <!--</div>-->
+        <!--</div>-->
+        <!--</div>-->
+        <!--</div>-->
+
+        <!--</div>-->
+
+    </div>
+</section><!-- #team -->
+
+
+<!--==========================
+Bibliographies
+============================-->
+<section id="services" class="section-bg">
+    <div class="container">
+
+        <header class="section-header">
+            <h3>Team Bio</h3>
+            <p>Globalfora Research Group Experience:</p>
+        </header>
+
+        <div class="row">
+            <!--<div>-->
+            <!--<img class="img-fluid" src="img/logo.JPG" alt="">-->
+
+            <div class="col-md-6 col-lg-4 wow bounceInUp" data-wow-duration="1.4s">
+                <div class="box">
+                    <div class="" style="background: #fceef3;"><img class="img-fluid" src="img/ProfNdiku.jpg"
+                                                                    alt="">
+
+                    </div>
+                    <div>
+                        <a href="img/ProfNdiku.jpg" class="link-preview" data-lightbox="portfolio"
+                           data-title="Prof. Lazarus Ndiku Makewa" title="Preview"><i class="ion ion-eye"></i></a>
+                    </div>
+                    <br>
+                    <h4 class="title"><a href="">Prof. Lazarus Ndiku Makewa</a></h4>
+
+                    <h6><i><b>Founder, Director and Chairperson</b></i></h6>
+                    <p class="description">
+                        Prof. Ndiku holds a PhD in Educational Communication and Technology from Moi University,
+                        Kenya.
+                        He is Professor of Educational Communication and Technology. Formerly was department
+                        chairperson
+                        and School Dean at Baraton University, He was School Dean, Deputy Vice Chancellor
+                        Academics
+                        and
+                        acting Vice Chancellor, Lukenya University. He has been Deputy Vice Chancellor Academics
+                        at
+                        Rwenzori International University, Uganda. Prof. Ndiku is the founder, CEO and Editor in
+                        Chief
+                        of Journal of Research Innovation and Implications in Education (JRIIE), Founder and
+                        proprietor
+                        of Center for Research Implications and Practice. He is a renowned researcher and a
+                        practitioner. He has authored, co-authored and published in peer reviewed journals. He
+                        has
+                        edited and authored books among them: IT Issues in Higher Education: Emerging Research
+                        and
+                        Opportunities; Theoretical and Practical Approaches to Innovation in Higher Education;
+                        Technology Supported Teaching and Research Methods for Educators; Handbook of Research
+                        on
+                        Enhancing Teacher Education with Advanced Instructional Technologies, among others.
+                    </p>
+                </div>
+            </div>
+
+            <div class="col-md-6 col-lg-4 wow bounceInUp" data-wow-delay="0.1s" data-wow-duration="1.4s">
+                <div class="box">
+                    <div class="" style="background: #e6fdfc;"><img class="img-fluid" src="img/MrEsau.jpg"
+                                                                    alt="">
+                    </div>
+                    <div>
+                        <a href="img/MrEsau.jpg" class="link-preview" data-lightbox="portfolio"
+                           data-title="Mr. Esau Murongo" title="Preview"><i class="ion ion-eye"></i></a>
+                    </div>
+                    <br>
+                    <h4 class="title"><a href="">Mr. Esau Murongo </a></h4>
+                    <h6><i><b>Director</b></i></h6>
+                    <p class="description">
+                        Mr. Murongo holds a Bachelor’s degree in Social Work and Social Administration from
+                        Uganda
+                        Christian University, a Master’s degree in Public Administration and Management from
+                        Uganda
+                        Management Institute, Esau is currently pursuing his PhD studies from Mbarara University
+                        of
+                        Science and Technology, Uganda. Mr. Esau is the Managing Editor for Journal of Research
+                        Innovation and Implications in Education which works under Centre for Research
+                        Implications
+                        and Practice. Mr. Esau has reviewed manuscripts in the Journal of Research Innovation
+                        and
+                        Implications in Education and also reviewed book chapters and manuscripts and has
+                        attended
+                        international research conferences both at national and international levels.
+                        Additionally, he has a span of over eleven (11) years of working experience in the
+                        government sector for improved service delivery to the rural population where he is
+                        working
+                        with Kasese District Local Government as Town Clerk. He has worked as a Senior Assistant
+                        Secretary/Sub County Chief, coordinating development planning aspects, financial
+                        management
+                        and rural development programs for poverty reduction among others.
+
+                    </p>
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-4 wow bounceInUp" data-wow-delay="0.1s" data-wow-duration="1.4s">
+                <div class="box">
+                    <div class="" style="background: #eafde7;">
+                        <img class="img-fluid" src="img/DrSophia.jpg"
+                             alt=""></div>
+                    <div>
+                        <a href="img/DrSophia.jpg" class="link-preview" data-lightbox="portfolio"
+                           data-title="Dr. Sophia Laiser John" title="Preview"><i class="ion ion-eye"></i></a>
+                    </div>
+                    <br>
+                    <h4 class="title"><a href="">Dr. Sophia Laiser John </a></h4>
+                    <h6><i><b>Director</b></i></h6>
+                    <p class="description">
+                        Dr. Sophia holds a Diploma in Education from Korogwe Teachers Colleges, Tanga.
+                        Bachelor’s
+                        degree in Education from Mt. Meru University, Arusha, Master’s degree in Education from
+                        Agha
+                        Khan University and PhD in Education (Curriculum and Teaching) from University of
+                        Eastern
+                        Africa, Baraton. Dr. Sophia is a senior lecturer at Tumaini University, Makumira,
+                        Arusha.
+                    </p>
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-4 wow bounceInUp" data-wow-delay="0.1s" data-wow-duration="1.4s">
+                <div class="box">
+                    <div class="" style="background: #eafde7;">
+                        <img class="img-fluid" src="img/MrNyaboga2.JPG"
+                             alt="">
+                    </div>
+                    <div>
+                        <a href="img/MrNyaboga2.JPG" class="link-preview" data-lightbox="portfolio"
+                           data-title="Mr. Enock Nyaboga" title="Preview"><i class="ion ion-eye"></i></a>
+                    </div>
+                    <br>
+                    <h4 class="title"><a href="">Mr. Enock Nyaboga </a></h4>
+                    <h6><i><b>Director</b></i></h6>
+                    <p class="description">
+                        Mr. Enock Nyaboga holds a Bachelor’s degree in Anthropology from University of Nairobi
+                        and
+                        Master’s degree in Project Management from Kampala International University. Currently
+                        he is
+                        pursuing a doctoral degree in Project Management from Jomo Kenyatta University of
+                        Agriculture and Technology. Mr. Enock is a Quality Assurance expert at the University of
+                        Tourism, Technology and Business Studies in Rwanda.
+                    </p>
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-4 wow bounceInUp" data-wow-delay="0.1s" data-wow-duration="1.4s">
+                <div class="box">
+                    <div class="" style="background: #eafde7;">
+                        <img class="img-fluid" src="img/DrJosephine.jpg"
+                             alt="">
+                    </div>
+                    <div>
+                        <a href="img/DrJosephine.jpg" class="link-preview" data-lightbox="portfolio"
+                           data-title="Dr. Josephine Mbithe Mutie" title="Preview"><i class="ion ion-eye"></i></a>
+                    </div>
+                    <br>
+                    <!---->
+                    <h4 class="title"><a href="">Dr. Josephine Mbithe Mutie </a></h4>
+                    <h6><i><b>Director</b></i></h6>
+                    <p class="description">
+                        Dr. Josephine went for her Bachelor’s degree at University of Nairobi where she studied
+                        Education. She has a Master’s degree and a PhD in Education (Educational
+                        Administration).
+                        She is widely published and a seasoned researcher. She enjoys working with Statistics.
+                        She
+                        is a senior lecturer at Scott Christian University, Kenya.
+                    </p>
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-4 wow bounceInUp" data-wow-delay="0.1s" data-wow-duration="1.4s">
+                <div class="box">
+                    <div class="" style="background: #eafde7;">
+                        <img class="img-fluid" src="img/DrNaisujaki2.JPG"
+                             alt="">
+                    </div>
+                    <div>
+                        <a href="img/DrNaisujaki2.JPG" class="link-preview" data-lightbox="portfolio"
+                           data-title="Dr. Naisujaki Lyimo" title="Preview"><i class="ion ion-eye"></i></a>
+                    </div>
+                    <br>
+                    <h4 class="title"><a href="">Dr. Naisujaki Lyimo </a></h4>
+                    <h6><i><b>Director</b></i></h6>
+                    <p class="description">
+                        Dr. Naisujaki holds a Bachelor’s degree in Education from Mount Meru University, Tanzania,
+                        Masters in Education from The University of Dodoma, Tanzania and PhD Curriculum Development
+                        from
+                        Moi University, Kenya. She is currently a lecturer Arusha Technical College.
+                    </p>
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-4 wow bounceInUp" data-wow-delay="0.1s" data-wow-duration="1.4s">
+                <div class="box">
+                    <div class="" style="background: #eafde7;">
+                        <img class="img-fluid" src="img/twinomugisha2.jpg"
+                             alt="">
+                    </div>
+                    <div>
+                        <a href="img/twinomugisha2.jpg" class="link-preview" data-lightbox="portfolio"
+                           data-title="Mr. Twinomugisha Sylvanus Rwobusiisi" title="Preview"><i class="ion ion-eye"></i></a>
+                    </div>
+                    <br>
+                    <h4 class="title"><a href="">Mr. Twinomugisha Sylvanus Rwobusiisi </a></h4>
+                    <h6><i><b>Member</b></i></h6>
+                    <p class="description">
+                        Mr. Twinomugisha has a Bachelor of Education and Master of Education from Makerere
+                        University.
+                        Sylvanus holds a post graduate diploma in public administration and management from Kabale
+                        University. He is currently pursuing PhD in Education (Curriculum Designing and Development)
+                        from Kyambogo University. His research interests center on instructional planning and
+                        curriculum
+                        development.
+                    </p>
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-4 wow bounceInUp" data-wow-delay="0.1s" data-wow-duration="1.4s">
+                <div class="box">
+                    <div class="" style="background: #eafde7;">
+                        <img class="img-fluid" src="img/ronald2.jpg"
+                             alt="">
+                    </div>
+                    <div>
+                        <a href="img/ronald2.jpg" class="link-preview" data-lightbox="portfolio"
+                           data-title="Mr. Ronald Kalulu" title="Preview"><i class="ion ion-eye"></i></a>
+                    </div>
+                    <br>
+                    <h4 class="title"><a href="">Mr. Ronald Kalulu </a></h4>
+                    <h6><i><b>Member</b></i></h6>
+                    <p class="description">
+                        Mr. Ronald Kalulu has Bachelor’s degree in Catering and Hotel Management from Makerere
+                        University, Uganda and Masters of Tourism and Hospitality from the same university. He is
+                        currently pursuing a PhD in Tourism and Hospitality Management from Atlantic International
+                        University in USA. Kalulu’s research interests are in tourism and hospitality.
+                    </p>
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-4 wow bounceInUp" data-wow-delay="0.1s" data-wow-duration="1.4s">
+                <div class="box">
+                    <div class="" style="background: #eafde7;">
+
+                        <img class="img-fluid" src="img/alice2.jpg"
+                             alt="">
+                    </div>
+                    <div>
+                        <a href="img/alice2.jpg" class="link-preview" data-lightbox="portfolio"
+                           data-title="Dr. Alice Dhliwayo" title="Preview"><i class="ion ion-eye"></i></a>
+                    </div>
+                    <br>
+                    <h4 class="title"><a href="">Dr. Alice Dhliwayo </a></h4>
+                    <h6><i><b>Member</b></i></h6>
+                    <p class="description">
+                        Dr. Alice Dhliwayo holds Bachelor’s degree in English from Solusi University, Zimbabwe, a
+                        Master’s degree in Philosophy from Midlands State University, Zimbabwe and PhD in Curriculum
+                        and
+                        Teaching from University of Eastern Africa, Baraton. She has taught in Zimbabwe Open
+                        University,
+                        Solusi University and Midlands State University. She has published in peer reviewed journals
+                        and
+                        is a reviewer of several journals.
+                    </p>
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-4 wow bounceInUp" data-wow-delay="0.1s" data-wow-duration="1.4s">
+                <div class="box">
+                    <div class="" style="background: #eafde7;">
+                        <!--<i class="ion-ios-speedometer-outline"-->
+                        <!--style="color:#41cf2e;"></i>-->
+                        <img class="img-fluid" src="img/patrick2.JPG"
+                             alt="">
+                    </div>
+                    <div>
+                        <a href="img/patrick2.JPG" class="link-preview" data-lightbox="portfolio"
+                           data-title="Mr. Patrick Gatsinzi" title="Preview"><i class="ion ion-eye"></i></a>
+                    </div>
+                    <br>
+                    <h4 class="title"><a href="">Mr. Patrick Gatsinzi </a></h4>
+                    <h6><i><b>Member</b></i></h6>
+                    <p class="description">
+                        Mr. Patrick Gatsinzi holds a Bachelor’s degree in Education from Kigali Institute of
+                        Education,
+                        currently, College of Education, and University of Rwanda. He has a Master’s degree in
+                        Educational Administration from University of Eastern Africa, Baraton, Kenya. He is pursuing
+                        a
+                        PhD in Educational Administration from UEAB. His research interests are in educational
+                        administration.
+                    </p>
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-4 wow bounceInUp" data-wow-delay="0.1s" data-wow-duration="1.4s">
+                <div class="box">
+                    <div class="" style="background: #eafde7;">
+                        <!--<i class="ion-ios-speedometer-outline"-->
+                        <!--style="color:#41cf2e;"></i>-->
+                        <img class="img-fluid" src="img/ezekiel.jpg"
+                             alt="">
+                    </div>
+                    <div>
+                        <a href="img/ezekiel.jpg" class="link-preview" data-lightbox="portfolio"
+                           data-title="Dr. Ezekiel Omwenga" title="Preview"><i class="ion ion-eye"></i></a>
+                    </div>
+                    <br>
+                    <h4 class="title"><a href="">Dr. Ezekiel Omwenga </a></h4>
+                    <h6><i><b>Member</b></i></h6>
+                    <p class="description">
+                        Dr. Ezekiel Omwenga is an experienced instructional curriculum leader and pedagogical
+                        teacher in
+                        higher Education with a PhD in Curriculum and Instruction, Moi University. Master of
+                        Education
+                        and Bachelor of Education from Kenyatta University. Cert, trainer of trainers from CEMASTEA,
+                        CHACK and ADRA Kenya. Has been School Principal and head of Teacher Education Kamagambo
+                        Adventist College, Coordinator Teaching Practice Kisii University. Dr. Omwenga’s research
+                        interests are in Instructional designing and media technology.
+                    </p>
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-4 wow bounceInUp" data-wow-delay="0.1s" data-wow-duration="1.4s">
+                <div class="box">
+                    <div class="" style="background: #eafde7;">
+                        <!--<i class="ion-ios-speedometer-outline"-->
+                        <!--style="color:#41cf2e;"></i>-->
+                        <img class="img-fluid" src="img/ProfStella.jpg"
+                             alt="">
+                    </div>
+                    <div>
+                        <a href="img/ProfStella.jpg" class="link-preview" data-lightbox="portfolio"
+                           data-title="Prof. Stella Muchemwa" title="Preview"><i class="ion ion-eye"></i></a>
+                    </div>
+                    <br>
+                    <h4 class="title"><a href="">Prof. Stella Muchemwa </a></h4>
+                    <h6><i><b>Member</b></i></h6>
+                    <p class="description">
+                        Prof. Stella Muchemwa is a Professor in the Department of Applied Education where she
+                        teaches
+                        English courses to MEd and BEd English students. She is also the Higher Degrees Research
+                        Committee
+                        Director for the Faculty of Education, Midlands State University, Zimbabwe. She has
+                        supervised
+                        graduate students in research at home and abroad. She loves collaborating with researchers
+                        and
+                        academicians worldwide, thus she is a reviewer and editor of a number of Academic Journals.
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-4 wow bounceInUp" data-wow-delay="0.1s" data-wow-duration="1.4s">
+                <div class="box">
+                    <div class="" style="background: #eafde7;">
+                        <img class="img-fluid" src="img/Wilton2.jpg"
+                             alt="">
+                        <!--<i class="ion-ios-speedometer-outline"-->
+                        <!--style="color:#41cf2e;"></i>-->
+                    </div>
+                    <div>
+                        <a href="img/Wilton2.jpg" class="link-preview" data-lightbox="portfolio"
+                           data-title="Dr. Wilton Ndayisenga" title="Preview"><i class="ion ion-eye"></i></a>
+                    </div>
+                    <br>
+                    <h4 class="title"><a href="">Dr. Wilton Ndayisenga </a></h4>
+                    <h6><i><b>Member</b></i></h6>
+                    <p class="description">
+                        Dr. Ndayisenga holds a Bachelor’s degree in Psycho- Pedagogy from Adventist University of
+                        Central Africa, Rwanda, Master of Education in Educational Management from Bugema
+                        University,
+                        Uganda and PhD in Educational Administration from University of Eastern Africa, Baraton,
+                        Kenya.
+                        Wilton is an experienced educational administrator having been High school and College
+                        Principal.
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-4 wow bounceInUp" data-wow-delay="0.1s" data-wow-duration="1.4s">
+                <div class="box">
+                    <div class="" style="background: #eafde7;">
+                        <!--<i class="ion-ios-speedometer-outline"-->
+                        <!--style="color:#41cf2e;"></i>-->
+                        <img class="img-fluid" src="img/Stephen2.jpg"
+                             alt="">
+                    </div>
+                    <div>
+                        <a href="img/Stephen2.jpg" class="link-preview" data-lightbox="portfolio"
+                           data-title="Mr. Stephen Moyo" title="Preview"><i class="ion ion-eye"></i></a>
+                    </div>
+                    <br>
+                    <h4 class="title"><a href="">Mr. Stephen Moyo </a></h4>
+                    <h6><i><b>Member</b></i></h6>
+                    <p class="description">
+                        Mr. Stephen Moyo holds a Bachelor of Arts degree in Geography and Biology with Education
+                        from
+                        University of Eastern Africa Baraton, Kenya, Master of Education in School Administration
+                        and
+                        PhD in Education Administration/management (in progress) from the same University. He has
+                        worked
+                        as university registrar for a number of years.
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-4 wow bounceInUp" data-wow-delay="0.1s" data-wow-duration="1.4s">
+                <div class="box">
+                    <div class="" style="background: #eafde7;">
+                        <!--<i class="ion-ios-speedometer-outline"-->
+                        <!--style="color:#41cf2e;"></i>-->
+                        <img class="img-fluid" src="img/Justinah2.jpg"
+                             alt="">
+                    </div>
+                    <div>
+                        <a href="img/Justinah2.jpg" class="link-preview" data-lightbox="portfolio"
+                           data-title="Ms Justinah Kavata Maluni" title="Preview"><i class="ion ion-eye"></i></a>
+                    </div>
+                    <br>
+                    <h4 class="title"><a href="">Ms Justinah Kavata Maluni </a></h4>
+                    <h6><i><b>Member</b></i></h6>
+                    <p class="description">
+                        Ms. Justinah Kavata Maluni holds a BSc. Public Health from University of Eastern Africa,
+                        Baraton. She is experienced in both quantitative and qualitative data collection using
+                        computer
+                        applications and paper surveys; data entry in SPSS, transcription using express scriber
+                        software; analysis using SPSS, STATA, R and NVIVO and report writing. Expert in proposal
+                        development and manuscript writing. A Self-motivated, hardworking and honest lady who Values
+                        good health
+                        the most and loves nature adventure, reading and making new friends.
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-4 wow bounceInUp" data-wow-delay="0.1s" data-wow-duration="1.4s">
+                <div class="box">
+                    <div class="" style="background: #eafde7;">
+                        <!--<i class="ion-ios-speedometer-outline"-->
+                        <!--style="color:#41cf2e;"></i>-->
+                        <img class="img-fluid" src="img/Eliphas.jpg"
+                             alt="">
+                    </div>
+                    <div>
+                        <a href="img/Eliphas.jpg" class="link-preview" data-lightbox="portfolio"
+                           data-title="Dr. Eliphas Mollel" title="Preview"><i class="ion ion-eye"></i></a>
+                    </div>
+                    <br>
+                    <h4 class="title"><a href="">Dr. Eliphas Mollel </a></h4>
+                    <h6><i><b>Member</b></i></h6>
+                    <p class="description">
+                        Dr. Eliphas Mollel has a Bachelor’s degree in Human Relations Management from Mzumbe
+                        University,
+                        Tanzania, MBA (Logistics Management) from Coventry University, MPA - HRM from University of
+                        Botswana and PhD in HRM from Moi University, Kenya.
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-4 wow bounceInUp" data-wow-delay="0.1s" data-wow-duration="1.4s">
+                <div class="box">
+                    <div class="" style="background: #eafde7;">
+                        <!--<i class="ion-ios-speedometer-outline"-->
+                        <!--style="color:#41cf2e;"></i>-->
+                        <img class="img-fluid" src="img/Sylvestre.jpg"
+                             alt="">
+                    </div>
+                    <div>
+                        <a href="img/Sylvestre.jpg" class="link-preview" data-lightbox="portfolio"
+                           data-title="Mr. Sylvestre Mbanza" title="Preview"> <i class="ion ion-eye"></i></a>
+                    </div>
+                    <br>
+                    <h4 class="title"><a href="">Mr. Sylvestre Mbanza </a></h4>
+                    <h6><i><b>Member</b></i></h6>
+                    <p class="description">
+                        Mr. Mbanza holds a Bachelor’s degree in Food and Science and Technology from Kigali
+                        Institute of
+                        Science and Technology. He has a master’s degree in Food Security from University of Kwazulu
+                        Natal, South Africa. He is currently enrolled for PhD with Atlantic International
+                        University,
+                        studying Human Nutrition and Dietetics.
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-4 wow bounceInUp" data-wow-delay="0.1s" data-wow-duration="1.4s">
+                <div class="box">
+                    <div class="" style="background: #eafde7;">
+                        <!--<i class="ion-ios-speedometer-outline"-->
+                        <!--style="color:#41cf2e;"></i>-->
+                        <img class="img-fluid" src="img/MrAdorable.jpg"
+                             alt="">
+                    </div>
+                    <div>
+                        <a href="img/MrAdorable.jpg" class="link-preview" data-lightbox="portfolio"
+                           data-title="Mr. Adorable Kimulya" title="Preview"> <i class="ion ion-eye"></i></a>
+                    </div>
+                    <br>
+                    <h4 class="title"><a href="">Mr. Adorable Kimulya </a></h4>
+                    <h6><i><b>Member</b></i></h6>
+                    <p class="description">
+                        Mr. Kimulya Adorable holds a bachelor’s degree in Education from Uganda Martyrs University where
+                        he specialized in English language and Music. He also holds Master’s degree of Education
+                        Management and Development from the same university. Adorable taught at Bugema Adventist and
+                        Mountains of the Moon Universities. He is pursuing PhD at Atlantic International University,
+                        Honolulu Hawaii.
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-4 wow bounceInUp" data-wow-delay="0.1s" data-wow-duration="1.4s">
+                <div class="box">
+                    <div class="" style="background: #eafde7;">
+                        <!--<i class="ion-ios-speedometer-outline"-->
+                        <!--style="color:#41cf2e;"></i>-->
+                        <img class="img-fluid" src="img/Makuza.jpg"
+                             alt="">
+                    </div>
+                    <div>
+                        <a href="img/Makuza.jpg" class="link-preview" data-lightbox="portfolio"
+                           data-title="Mr. Samuel Makuza" title="Preview"> <i class="ion ion-eye"></i></a>
+                    </div>
+                    <br>
+                    <h4 class="title"><a href="">Mr. Samuel Makuza </a></h4>
+                    <h6><i><b>Member</b></i></h6>
+                    <p class="description">
+                        Mr. Makuza holds Master’s degree in Business Administration (Aviation) from Moi University,
+                        Kenya. He has been in aviation since 2002 and worked as Air Traffic Controller after completing
+                        related courses and Aeronautical information officer in Rwanda. In 2012, Samuel joined the Air
+                        Operation activities in United Nation Africa Hybrid Mission in Darfur (UNAMID) Nyala
+                        International Airport. His training has taken him through East African School of Aviation,
+                        Kenya; Singapore Aviation Academy; Tanzania Civil Aviation Authority. He is the founder of
+                        Aviajoin Ltd, a consultancy firm in Rwanda.
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-4 wow bounceInUp" data-wow-delay="0.1s" data-wow-duration="1.4s">
+                <div class="box">
+                    <div class="" style="background: #eafde7;">
+                        <!--<i class="ion-ios-speedometer-outline"-->
+                        <!--style="color:#41cf2e;"></i>-->
+                        <img class="img-fluid" src="img/DrYegoh.jpg"
+                             alt="">
+                    </div>
+                    <div>
+                        <a href="img/DrYegoh.jpg" class="link-preview" data-lightbox="portfolio"
+                           data-title="Dr. Ernest Yegoh" title="Preview"> <i class="ion ion-eye"></i></a>
+                    </div>
+                    <br>
+                    <h4 class="title"><a href="">Dr. Ernest Yegoh </a></h4>
+                    <h6><i><b>Member</b></i></h6>
+                    <p class="description">
+                        Dr. Yegoh holds Bachelor’s degree in Agricultural Education and Extension for Egerton University,
+                        Kenya, Masters of Education in Educational Administration and PhD in Educational Administration,
+                        both from University of Eastern Africa, Baraton, Kenya. He is an experienced career teacher and
+                        an administrator.
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-4 wow bounceInUp" data-wow-delay="0.1s" data-wow-duration="1.4s">
+                <div class="box">
+                    <div class="" style="background: #eafde7;">
+                        <!--<i class="ion-ios-speedometer-outline"-->
+                        <!--style="color:#41cf2e;"></i>-->
+                        <img class="img-fluid" src="img/Augustin.jpg"
+                             alt="">
+                    </div>
+                    <div>
+                        <a href="img/Augustin.jpg" class="link-preview" data-lightbox="portfolio"
+                           data-title="Mr. Augustin Katihabwa" title="Preview"> <i class="ion ion-eye"></i></a>
+                    </div>
+                    <br>
+                    <h4 class="title"><a href="">Augustin Katihabwa </a></h4>
+                    <h6><i><b>Member</b></i></h6>
+                    <p class="description">
+                        Augustin Katihabwa holds a bachelor's degree in Civil Engineering from Hope Africa University, Burundi. He holds a master's degree of Arts in Project Planning and Management from Catholic University of Eastern Africa, Kenya. He has experience in Civil Constructions from different Companies in Burundi and in Kenya. His research interests are in Project Planning for Sustainable Development.
+                </div>
+            </div>
+        </div>
+    </div>
+</section><!-- #services -->
+
+
+<!--==========================
+  Clients Section
+============================-->
+<!--<section id="clients" class="wow fadeInUp">-->
+<!--<div class="container">-->
+
+<!--<header class="section-header">-->
+<!--<h3>Our Clients</h3>-->
+<!--</header>-->
+
+<!--<div class="owl-carousel clients-carousel">-->
+<!--<img src="img/IMG_7782%20Vin.jpg" alt="">-->
+<!--<img src="img/IMG_7782%20Vin.jpg" alt="">-->
+<!--<img src="img/IMG_7782%20Vin.jpg" alt="">-->
+<!--<img src="img/IMG_7782%20Vin.jpg" alt="">-->
+<!--<img src="img/IMG_7782%20Vin.jpg" alt="">-->
+<!--<img src="img/IMG_7782%20Vin.jpg" alt="">-->
+<!--<img src="img/IMG_7782%20Vin.jpg" alt="">-->
+<!--<img src="img/IMG_7782%20Vin.jpg" alt="">-->
+<!--</div>-->
+
+<!--</div>-->
+<!--</section>&lt;!&ndash; #clients &ndash;&gt;-->
+
+<!--==========================
+  Frequently Asked Questions Section
+============================-->
+<section id="faq">
+    <div class="container">
+        <header class="section-header">
+            <h3>Frequently Asked Questions</h3>
+            <p>Some of the common questions we receive </p>
+        </header>
+
+        <ul id="faq-list" class="wow fadeInUp">
+            <li>
+                <a data-toggle="collapse" class="collapsed" href="#faq1">Is your team competent with proven
+                    track
+                    of record? <i class="ion-android-remove"></i></a>
+                <div id="faq1" class="collapse" data-parent="#faq-list">
+                    <p>
+                        Our team comprises of experts in their own disciplines, which makes our products and services
+                        competitive and long lasting.
+                    </p>
+                </div>
+            </li>
+
+            <li>
+                <a data-toggle="collapse" href="#faq2" class="collapsed">Can you also help on effective
+                    report
+                    findings ? <i class="ion-android-remove"></i></a>
+                <div id="faq2" class="collapse" data-parent="#faq-list">
+                    <p>
+                        Majority of our members have been in research for decades, making their reporting
+                        characterization unique and acceptable to our clients.
+                    </p>
+                </div>
+            </li>
+
+            <li>
+                <a data-toggle="collapse" href="#faq3" class="collapsed">Can I consult you on any research related
+                    service? <i
+                            class="ion-android-remove"></i></a>
+                <div id="faq3" class="collapse" data-parent="#faq-list">
+                    <p>
+                        We provide all research services to our clients, whether they are students, companies,
+                        organizations or government entities. For example, we can help in the following stages of a
+                        research: Problem statement, research objectives, research questions, hypothesis, etc.,
+                        literature review, research methodology, developing data collection tools, data collection, data
+                        analysis, data reporting, and publishing reports in manuscripts, books and in our journals.
+                    </p>
+                </div>
+            </li>
+
+            <li>
+                <a data-toggle="collapse" href="#faq4" class="collapsed">How are your prices? <i
+                        class="ion-android-remove"></i></a>
+                <div id="faq4" class="collapse" data-parent="#faq-list">
+                    <p>
+                        Our pricing is tailored towards the client’s need. We offer competitive pricing for our services
+                        and products. It is the quality of the service that determines the price.
+                    </p>
+                </div>
+            </li>
+
+            <li>
+                <a data-toggle="collapse" href="#faq5" class="collapsed">Does your group operate in different countries?
+                    <i
+                            class="ion-android-remove"></i></a>
+                <div id="faq5" class="collapse" data-parent="#faq-list">
+                    <p>
+                        The team comprises of members from different countries, as a result, our services are global.
+                    </p>
+                </div>
+            </li>
+
+            <li>
+                <a data-toggle="collapse" href="#faq6" class="collapsed">Are your Globalfora schools operational? <i
+                        class="ion-android-remove"></i></a>
+                <div id="faq6" class="collapse" data-parent="#faq-list">
+                    <p>
+                        Not yet. We are in the process of putting operational structures in place. As soon as we are
+                        done with this process, our schools will be operational.
+                    </p>
+                </div>
+            </li>
+
+        </ul>
+
+    </div>
+</section><!-- #faq -->
+
+</main>
+
+<!--==========================
+  Footer
+============================-->
+<footer id="footer" class="section-bg">
+
+    <div class="footer-top">
+        <!--<header class="section-header">-->
+        <!--<h2 class="align-content-center">Contact Us</h2>-->
+
+        <div class="container">
+            <header class="section-header">
+                <h3>Contact Us</h3>
+                <p>Talk to us today!</p>
+            </header>
+
+            <div class="row">
+
+                <div class="col-lg-6">
+
+                    <div class="row">
+
+                        <div class="col-sm-6">
+
+                            <div class="footer-info">
+                                <h2>Globalfora</h2>
+                                <h4>Goals</h4>
+                                <p>1.To create a team of researchers aimed at conducting innovative research and
+                                    publications.</p>
+                                <p>2.To establish quality and affordable consultancy in research, education and
+                                    training
+                                    for global advancement.</p>
+                                <p>3.To establish educational institutions that foster development of creative and
+                                    innovative minds.</p>
+                                <p>4.To set up and operate a state of the art publishing house.</p>
+
+                            </div>
+
+                            <div class="col-lg-10 col-md-12 no-padding banner-right">
+                                <img class="img-fluid" src="img/logo.JPG" alt="">
+                            </div>
+
+
+                        </div>
+
+                        <div class="col-sm-6">
+                            <div class="footer-links">
+                                <h3>Useful Links</h3>
+                                <ul>
+                                    <li><a href="#intro">Home</a></li>
+                                    <li><a href="#about">About us</a></li>
+                                    <li><a href="#services">Services</a></li>
+                                    <li><a href="#team">Bibliographies</a></li>
+                                    <!--<li><a href="#">Privacy policy</a></li>-->
+                                </ul>
+                            </div>
+
+                            <div class="footer-links">
+                                <h3>Contact Us</h3>
+                                <p>
+                                    Globalfora Research Group Ltd <br><br>
+                                    ICEA Building, 17th Floor <br>
+                                    Kenyatta Avenue <br>
+                                    P.O. Box 22998 - 00300<br>
+                                    Nairobi, Kenya <br>
+                                    <strong>T:</strong> +254 728 108 022<br>
+                                    <strong>W:</strong>www.globalforarg.com<br>
+                                    <strong>E:</strong>info@globalforarg.com<br>
+                                </p>
+                            </div>
+
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+                <div class="col-lg-6">
+
+
+                    <div class="single-contact-box">
+                        <div class="contact-form">
+                            <h3>Send Us Message</h3>
+                            <p>Make you inquiry through the form below</p>
+
+                            <br><br>
+
+                            <!--contact start-->
+                            <!--<div id="footer" class="jumper"></div>-->
+                            <!--<div class="section type-3">-->
+
+
+                            <div class="text-left">
+                                <!--<div class="container-fluid">-->
+                                <div class="row">
+                                    <div class="col-sm-4">
+                                        <div class="card">
+                                            <div class="card-header"><h5><b>Inquiry Form</b></h5></div>
+                                            <div class="card-body">
+                                                <button type="button" class="btn btn-success"
+                                                        data-toggle="modal"
+                                                        data-target="#registernewclient">
+                                                    Click Here
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-sm-4">
+                                        <div class="card">
+                                            <div class="card-header"><h5><b>WhatsApp Web</b></h5></div>
+                                            <div class="card-body">
+                                                <button class="btn btn-danger"
+                                                        onclick="window.location.href = 'https://web.whatsapp.com/send?phone=+254706361495&text=Hello I need to talk to someone';">
+                                                    Click Here
+                                                </button>
+
+                                                <!--<div class="form-popup" id="myForm">-->
+
+                                                <!--</div>-->
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-sm-4">
+                                        <div class="card">
+                                            <div class="card-header"><h5><b>QR <br>Scan</b></h5></div>
+                                            <div class="card-body">
+                                                <button type="button" class="btn btn-warning"
+                                                        data-toggle="modal"
+                                                        data-target="#qrscan">
+                                                    Click Here
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <!--<div class="col-sm-4">-->
+
+
+                                </div>
+                            </div>
+
+                        </div>
+
+
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+        <div id="registernewclient" class="modal fade" role="dialog">
+
+            <div class="modal-dialog">
+
+                <div class="modal-content">
+
+                    <div class="modal-header">
+
+                        <button color="red" type="button" class="close" data-dismiss="modal">x</button>
+
+                    </div>
+
+                    <div class="modal-body">
+
+
+                        <div class="row justify-content-center">
+
+                            <div class="col-sm-10">
+                                <h2><p align="center"><b><u>Send Us Message</u></b></p></h2>
+                                <h4 class="hidden" id="status-bar" style="color:white">Sending ..</h4>
+                                <!--<h4 class="hidden" id="status-bar" style="color:#ff0c11">Submitting Request-->
+                                <!--    ..</h4>-->
+
+                                <!--</div>-->
+
+                                <form class="form-pup" id="idForm" method="post" action="post.php">
+
+                                    <div class="row">
+                                        <div class="col-sm-6 col-xs-12">
+                                            <div class="form-group">
+                                                <input type="text" class="form-control" id="firstname"
+                                                       placeholder="First Name" name="firstname" required>
+                                            </div><!--/.form-group-->
+                                        </div><!--/.col-->
+                                        <div class="col-sm-6 col-xs-12">
+                                            <div class="form-group">
+                                                <input type="text" class="form-control" id="lastname"
+                                                       placeholder="Last Name" name="lastname">
+                                            </div><!--/.form-group-->
+                                        </div><!--/.col-->
+                                    </div><!--/.row-->
+                                    <div class="row">
+                                        <div class="col-sm-6 col-xs-12">
+                                            <div class="form-group">
+                                                <input type="email" class="form-control" id="email"
+                                                       placeholder="Email"
+                                                       name="email">
+                                            </div><!--/.form-group-->
+                                        </div><!--/.col-->
+                                        <div class="col-sm-6 col-xs-12">
+                                            <div class="form-group">
+                                                <input type="text" class="form-control" id="phone"
+                                                       placeholder="Phone"
+                                                       name="phone">
+                                            </div><!--/.form-group-->
+                                        </div><!--/.col-->
+                                    </div><!--/.row-->
+
+                                    <div class="row">
+                                        <div class="col-sm-12">
+                                            <div class="form-group"><textarea class="form-control"
+                                                                              rows="7" id="comment"
+                                                                              name="message"
+                                                                              placeholder="Message"></textarea>
+                                            </div><!--/.form-group-->
+                                        </div><!--/.col-->
+                                    </div><!--/.row-->
+                                    <br>
+                                    <!--<div>-->
+                                    <!--<form action="/action_page.php">-->
+                                    <!--Select the time to start your journey: e.g 05:00 PM-->
+                                    <!--<input type="time"-->
+                                    <!--name="usr_time"-->
+                                    <!--required="">-->
+                                    <!--</form>-->
+                                    <!--</div>-->
+                                    <!--</body>-->
+                                    <div class="form-group">
+                                        <button class="btn-danger" type="submit">Submit Inquiry Now
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    </form>
+                </div>
+            </div>
+            </form>
+        </div>
+    </div>
+    </div>
+    </div>
+
+    <div id="qrscan" class="modal fade" role="dialog">
+
+        <div class="modal-dialog">
+
+            <div class="modal-content">
+
+                <div class="modal-header">
+
+                    <button color="red" type="button" class="close" data-dismiss="modal">x</button>
+
+                </div>
+
+                <div class="modal-body">
+
+
+                    <div class="row justify-content-center">
+
+                        <div class="col-sm-10">
+                            <h2><p align="center"><b><u>Scan Now</u></b></p></h2>
+
+                            <form class="form-pup" id="" method="post" action="">
+
+                                <div class="row">
+                                    <div class="col-sm-6 col-xs-12">
+                                        <div class="form-group" style="background: #eafde7;">
+
+                                            <img class="img-fluid" src="img/QR-Name2.png"
+                                                 alt="">
+                                            <p>Company Name</p>
+                                        </div><!--/.form-group-->
+                                    </div><!--/.col-->
+                                    <div class="col-sm-6 col-xs-12">
+                                        <div class="form-group" style="background: #eafde7;">
+                                            <img class="img-fluid" src="img/QR-SMS.png"
+                                                 alt="">
+                                            <p>SMS</p>
+                                        </div><!--/.form-group-->
+                                    </div><!--/.col-->
+                                </div><!--/.row-->
+                                <div class="row">
+                                    <div class="col-sm-6 col-xs-12">
+                                        <div class="form-group" style="background: #eafde7;">
+                                            <img class="img-fluid" src="img/QR-URL2.png"
+                                                 alt="">
+                                            <p>Company URL</p>
+                                        </div><!--/.form-group-->
+                                    </div><!--/.col-->
+                                    <div class="col-sm-6 col-xs-12">
+                                        <div class="form-group" style="background: #eafde7;">
+                                            <img class="img-fluid" src="img/QR-Phone.png"
+                                                 alt=""
+                                            <p>Current Phone Number</p>
+                                        </div><!--/.form-group-->
+                                    </div><!--/.col-->
+                                </div><!--/.row-->
+
+                                <br>
+
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+
+    <div class="container">
+        <div>
+            Copyright &copy;
+            <script>document.write(new Date().getFullYear());</script>
+            | Globalfora Research Group Ltd | Design by: <a
+                href="https://github.com/VincentCheruiyot"
+                target="_blank">ENVI Experts</a>
+        </div>
+    </div>
+</footer><!-- #footer -->
+
+<a href="#" class="back-to-top"><i class="fa fa-chevron-up"></i></a>
+<!-- Uncomment below i you want to use a preloader -->
+<!-- <div id="preloader"></div> -->
+
+<!-- JavaScript Libraries -->
+<script src="lib/jquery/jquery.min.js"></script>
+<script src="lib/jquery/jquery-migrate.min.js"></script>
+<script src="lib/bootstrap/js/bootstrap.bundle.min.js"></script>
+<script src="lib/easing/easing.min.js"></script>
+<script src="lib/mobile-nav/mobile-nav.js"></script>
+<script src="lib/wow/wow.min.js"></script>
+<script src="lib/waypoints/waypoints.min.js"></script>
+<script src="lib/counterup/counterup.min.js"></script>
+<script src="lib/owlcarousel/owl.carousel.min.js"></script>
+<script src="lib/isotope/isotope.pkgd.min.js"></script>
+<script src="lib/lightbox/js/lightbox.min.js"></script>
+<!-- Contact Form JavaScript File -->
+<script src="contactform/contactform.js"></script>
+
+
+<!-- Template Main Javascript File -->
+<script src="js/main.js"></script>
+
+<!-- jaquery link -->
+
+<script src="assets/js/jquery.js"></script>
+<!-- Include all compiled plugins (below), or include individual files as needed -->
+
+<!--modernizr.min.js-->
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/modernizr/2.8.3/modernizr.min.js"></script>
+
+
+<!--bootstrap.min.js-->
+<script type="text/javascript" src="assets/js/bootstrap.min.js"></script>
+
+<!-- bootsnav js -->
+<script src="assets/js/bootsnav.js"></script>
+
+<!-- for manu -->
+<script src="assets/js/jquery.hc-sticky.min.js" type="text/javascript"></script>
+
+
+<!-- vedio player js -->
+<script src="assets/js/jquery.magnific-popup.min.js"></script>
+
+
+<script type="text/javascript"
+        src="https://cdnjs.cloudflare.com/ajax/libs/jquery-easing/1.4.1/jquery.easing.min.js"></script>
+
+
+<!--owl.carousel.js-->
+<script type="text/javascript" src="assets/js/owl.carousel.min.js"></script>
+
+<!-- counter js -->
+<script src="assets/js/jquery.counterup.min.js"></script>
+<script src="assets/js/waypoints.min.js"></script>
+
+<!--Custom JS-->
+<script type="text/javascript" src="assets/js/jak-menusearch.js"></script>
+<script type="text/javascript" src="assets/js/custom.js"></script>
+
+<script>
+
+
+    // magic.js
+    // this is the id of the form
+    $("#idForm").submit(function (e) {
+        var form = $(this);
+        var url = form.attr('action');
+        $("#status-bar").removeClass("hidden");
+        $.ajax({
+            type: "POST",
+            url: url,
+            data: form.serialize(), // serializes the form's elements.
+            success: function (data) {
+                $("#status-bar").addClass("hidden");
+                $("#idForm")[0].reset();
+                console.log(data);
+                if (data == "success") {
+                    alert("Message Sent");
+                } else {
+                    alert("Failed");
+                }// show response from the php script.
+            }
+        });
+        e.preventDefault(); // avoid to execute the actual submit of the form.
+    });
+
+
+</script>
+
+</body>
+</html>
